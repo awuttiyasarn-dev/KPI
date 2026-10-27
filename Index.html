@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REPORT · ระบบฐานข้อมูลผู้ป่วย</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f1f5f9;--card:#fff;--text:#0f172a;--mut:#64748b;--line:#e2e8f0;--pri:#0d9488;--pri-d:#0f766e;--pri-l:#ccfbf1;--side:#0b2b2e;--r:16px}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Sarabun',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh}
+.hidden{display:none!important}
+.sidebar{width:240px;background:linear-gradient(180deg,var(--side),#103d41);color:#cbe7e5;padding:22px 14px;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;flex-shrink:0}
+.brand{display:flex;gap:12px;align-items:center;margin-bottom:28px;padding:0 6px}
+.brand b{color:#fff;font-size:18px;display:block}.brand small{opacity:.7;font-size:12px}
+.logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#2dd4bf,#0d9488);display:grid;place-items:center;color:#fff;font-size:20px}
+nav{display:flex;flex-direction:column;gap:6px;flex:1}
+.nav-item{display:flex;gap:12px;align-items:center;padding:11px 14px;border-radius:12px;color:#cbe7e5;text-decoration:none;font-weight:500;transition:.2s}
+.nav-item i{font-style:normal;font-size:18px;width:22px;text-align:center}
+.nav-item:hover{background:rgba(255,255,255,.08)}
+.nav-item.on{background:var(--pri);color:#fff;box-shadow:0 6px 16px rgba(13,148,136,.35)}
+.side-foot{font-size:12px;opacity:.85;padding:0 6px;display:flex;align-items:center;gap:8px}
+.dot{width:9px;height:9px;border-radius:50%;background:#f59e0b;display:inline-block}
+.dot.on{background:#22c55e}.dot.off{background:#ef4444}
+main{flex:1;padding:28px 32px;min-width:0}
+.top,.head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.top{margin-bottom:22px}
+h1{margin:0;font-size:26px}h2{margin:0 0 14px;font-size:16px}.head h2{margin:0}
+.top p,.hint{margin:4px 0 0;color:var(--mut);font-size:13px}
+.pill{background:var(--pri-l);color:var(--pri-d);padding:8px 16px;border-radius:99px;font-size:13px;font-weight:500}
+.card{background:var(--card);border-radius:var(--r);padding:20px;margin-bottom:18px;box-shadow:0 1px 3px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.04)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;margin-bottom:18px}
+.kpi{background:var(--card);border-radius:var(--r);padding:18px 20px;border-left:5px solid var(--pri);box-shadow:0 1px 3px rgba(15,23,42,.06),0 8px 24px rgba(15,23,42,.04)}
+.kpi:nth-child(2){border-color:#6366f1}.kpi:nth-child(3){border-color:#f59e0b}.kpi:nth-child(4){border-color:#ec4899}
+.kpi span{color:var(--mut);font-size:13px}.kpi b{display:block;font-size:32px;margin-top:6px}.kpi b.sm{font-size:18px;line-height:1.5;word-break:break-word}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:18px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.bars{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.bar{display:grid;grid-template-columns:130px 1fr 60px;gap:10px;align-items:center;font-size:13px}
+.bar .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .t{background:#eef2f7;border-radius:99px;height:12px;overflow:hidden}
+.bar .t i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#2dd4bf,#0d9488);transition:width .6s}
+.bar .v{text-align:right;color:var(--mut)}
+.empty{color:var(--mut);text-align:center;padding:30px 0;font-size:14px}
+.btn,select,input{font:inherit;font-size:14px;padding:9px 14px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--text)}
+.btn{cursor:pointer;transition:.15s}.btn:hover{border-color:var(--pri);color:var(--pri)}
+.btn.primary{background:var(--pri);border-color:var(--pri);color:#fff}.btn.primary:hover{background:var(--pri-d);color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+input:focus,select:focus{outline:2px solid var(--pri-l);border-color:var(--pri)}
+.dropzone{border:2px dashed #94a3b8;border-radius:14px;padding:30px;text-align:center;cursor:pointer;transition:.2s;display:flex;flex-direction:column;gap:4px}
+.dropzone:hover,.dropzone.over{border-color:var(--pri);background:#f0fdfa}
+.dropzone .up{font-size:34px;color:var(--pri)}.dropzone small{color:var(--mut)}
+.status{margin-top:10px;font-size:13px;white-space:pre-line}.status.ok{color:#047857}.status.err{color:#b91c1c}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.tab{padding:7px 14px;border-radius:99px;border:1px solid var(--line);background:#fff;cursor:pointer;font:inherit;font-size:13px}
+.tab.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+.toolbar{display:grid;grid-template-columns:2fr 1fr auto;gap:8px;margin-bottom:12px}
+.table-wrap{overflow:auto;max-height:520px;border:1px solid var(--line);border-radius:12px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:9px 14px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:left}
+th{position:sticky;top:0;background:#f8fafc;font-weight:700}
+tbody tr:hover{background:#f0fdfa}
+@media(max-width:800px){body{flex-direction:column}.sidebar{width:100%;height:auto;position:static;padding:14px}nav{flex-direction:row}.side-foot{display:none}.brand{margin-bottom:12px}main{padding:18px}.toolbar{grid-template-columns:1fr}.bar{grid-template-columns:90px 1fr 50px}}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="brand"><span class="logo">✚</span><div><b>REPORT</b><small>ระบบข้อมูลผู้ป่วย</small></div></div>
+  <nav>
+    <a class="nav-item" data-view="dashboard" href="#dashboard"><i>◧</i>Dashboard</a>
+    <a class="nav-item" data-view="database" href="#database"><i>▤</i>ฐานข้อมูลผู้ป่วย</a>
+  </nav>
+  <div class="side-foot"><span class="dot" id="conn"></span><span id="connText">กำลังเชื่อมต่อ...</span></div>
+</aside>
+
+<main>
+<!-- ============ DASHBOARD ============ -->
+<section id="view-dashboard" class="view">
+  <header class="top">
+    <div><h1>Dashboard</h1><p>ภาพรวมข้อมูลจาก Google Sheet</p></div>
+    <button class="btn" id="refreshDash">⟳ รีเฟรช</button>
+  </header>
+
+  <div class="kpis">
+    <div class="kpi"><span>จำนวนชีต</span><b id="kSheets">-</b></div>
+    <div class="kpi"><span>ข้อมูลทั้งหมด (แถว)</span><b id="kRows">-</b></div>
+    <div class="kpi"><span>ชีตที่ใหญ่ที่สุด</span><b id="kTop" class="sm">-</b></div>
+    <div class="kpi"><span>อัปเดตล่าสุด</span><b id="kTime" class="sm">-</b></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card"><h2>จำนวนแถวแยกตามชีต</h2><div id="chartSheets" class="bars"></div></div>
+    <div class="card">
+      <h2>การกระจายข้อมูล</h2>
+      <div class="row">
+        <select id="dSheet"></select>
+        <select id="dCol"></select>
+      </div>
+      <div id="chartCol" class="bars"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DATABASE ============ -->
+<section id="view-database" class="view hidden">
+  <header class="top">
+    <div><h1>ฐานข้อมูลผู้ป่วย</h1><p>นำเข้า ตรวจสอบ ค้นหา และส่งออกข้อมูล</p></div>
+    <div class="pill"><span class="dot on"></span>REPORT · <span id="recordCount">0</span> รายการ</div>
+  </header>
+
+  <div class="card">
+    <h2>นำเข้า Excel / CSV</h2>
+    <div id="dropzone" class="dropzone" tabindex="0" role="button">
+      <div class="up">⇧</div>
+      <b>คลิกเพื่อเลือกไฟล์ หรือลากไฟล์มาวางที่นี่</b>
+      <small>.xls .xlsx .xlsm .xlsb .ods .csv .tsv · ใช้แถวแรกเป็นหัวตาราง · เลือกได้หลายไฟล์</small>
+    </div>
+    <input id="fileInput" type="file" multiple hidden accept=".xls,.xlsx,.xlsm,.xlsb,.ods,.csv,.tsv,.txt">
+    <div id="importStatus" class="status"></div>
+  </div>
+
+  <div class="card">
+    <div class="head"><h2>ข้อมูลใน Google Sheet</h2>
+      <div class="row"><span class="hint" id="listSummary">-</span>
+      <button class="btn" id="refreshSheet">⟳ โหลดใหม่</button></div></div>
+    <div id="sheetTabs" class="tabs"></div>
+    <div class="toolbar">
+      <input id="search" placeholder="🔍 ค้นหาในชีตที่เลือก...">
+      <select id="pageSize"><option value="25">25 รายการ</option><option value="50">50 รายการ</option><option value="100">100 รายการ</option><option value="all">ทั้งหมด (สูงสุด 1,000)</option></select>
+      <button class="btn" id="resetFilter">รีเซ็ต</button>
+    </div>
+    <div class="table-wrap"><table><thead id="patientHead"></thead><tbody id="patientBody"></tbody></table></div>
+    <div class="head" style="margin-top:12px">
+      <span class="hint" id="paginationInfo"></span>
+      <div class="row"><button class="btn" id="prevPage">ก่อนหน้า</button><button class="btn" id="nextPage">ถัดไป</button></div>
+    </div>
+    <div class="hint">แก้ไขหรือลบข้อมูลได้ที่ Google Sheet โดยตรง แล้วกด "โหลดใหม่"</div>
+  </div>
+
+  <div class="card">
+    <h2>ส่งออกข้อมูล</h2>
+    <div class="row">
+      <button class="btn primary" id="exportXlsx">ส่งออก Excel (.xlsx)</button>
+      <button class="btn" id="exportCsv">ส่งออก CSV (ชีตที่เลือก)</button>
+      <button class="btn" id="backupJson">สำรอง JSON</button>
+    </div>
+    <div id="exportStatus" class="status"></div>
+  </div>
+</section>
+</main>
+<script>
+/* ===== ตั้งค่า ===== */
+const API_URL = 'https://script.google.com/macros/s/AKfycbyDVuHOl48Fke6Sb7D-MsVSUC4lPlOpe03mw63JdNtn9OU5Y1cGW_64Ly15JUA4p4qF/exec';
+const TOKEN = 'RPT-yKYSfvz_9xLknDkTheHdW6Ho';
+/* ================== */
+
+(function () {
+  const $ = id => document.getElementById(id);
+  const CHUNK = 500;
+  const st = { sheets: [], data: {}, active: '', page: 1, synced: null };
+
+  const run = async (fn, ...args) => {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ token: TOKEN, fn, args })
+    });
+    const j = await res.json();
+    if (!j.ok) throw new Error(j.error);
+    return j.data;
+  };
+  const say = (el, m, t) => { el.textContent = m; el.className = 'status ' + (t || ''); };
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const stamp = () => new Date().toISOString().slice(0, 10);
+  const dl = (blob, name) => { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); };
+
+  /* ---------- เมนู ---------- */
+  function show() {
+    const v = location.hash === '#database' ? 'database' : 'dashboard';
+    document.querySelectorAll('.view').forEach(s => s.classList.toggle('hidden', s.id !== 'view-' + v));
+    document.querySelectorAll('.nav-item').forEach(a => a.classList.toggle('on', a.dataset.view === v));
+  }
+  window.addEventListener('hashchange', show);
+
+  /* ---------- โหลดข้อมูล ---------- */
+  async function loadSheet(n) { if (!st.data[n]) st.data[n] = await run('getSheetData', 'report', n, 1000); }
+  async function refresh() {
+    try {
+      st.sheets = await run('getSheetList', 'report');
+      if (!st.sheets.some(s => s.name === st.active)) st.active = st.sheets[0] ? st.sheets[0].name : '';
+      st.data = {};
+      if (st.active) await loadSheet(st.active);
+      st.synced = new Date();
+      $('conn').className = 'dot on'; $('connText').textContent = 'เชื่อมต่อ Google Sheet แล้ว';
+    } catch (e) {
+      $('conn').className = 'dot off'; $('connText').textContent = 'เชื่อมต่อไม่ได้';
+      $('listSummary').textContent = 'โหลดไม่สำเร็จ: ' + e.message;
+    }
+    renderDash(); renderTabs(); renderTable();
+    $('recordCount').textContent = st.sheets.reduce((n, s) => n + s.rows, 0).toLocaleString();
+  }
+  $('refreshDash').onclick = refresh;
+  $('refreshSheet').onclick = refresh;
+
+  /* ---------- Dashboard ---------- */
+  function bars(el, items, color) {
+    if (!items.length) { el.innerHTML = '<div class="empty">ไม่มีข้อมูล</div>'; return; }
+    const max = Math.max(...items.map(i => i[1]), 1);
+    el.innerHTML = items.map(([n, v]) =>
+      `<div class="bar"><span class="n" title="${esc(n)}">${esc(n)}</span><span class="t"><i style="width:${(v / max * 100).toFixed(1)}%"></i></span><span class="v">${v.toLocaleString()}</span></div>`).join('');
+  }
+  function renderDash() {
+    const total = st.sheets.reduce((n, s) => n + s.rows, 0);
+    const top = [...st.sheets].sort((a, b) => b.rows - a.rows)[0];
+    $('kSheets').textContent = st.sheets.length;
+    $('kRows').textContent = total.toLocaleString();
+    $('kTop').textContent = top ? top.name + ' (' + top.rows.toLocaleString() + ')' : '-';
+    $('kTime').textContent = st.synced ? st.synced.toLocaleString('th-TH') : '-';
+    bars($('chartSheets'), st.sheets.map(s => [s.name, s.rows]));
+
+    $('dSheet').innerHTML = st.sheets.map(s => `<option ${s.name === st.active ? 'selected' : ''}>${esc(s.name)}</option>`).join('');
+    fillCols();
+  }
+  function fillCols() {
+    const d = st.data[$('dSheet').value];
+    const keep = $('dCol').value;
+    $('dCol').innerHTML = d ? d.header.map((h, i) => `<option value="${i}">${esc(h || 'คอลัมน์ ' + (i + 1))}</option>`).join('') : '';
+    if (keep && d && +keep < d.header.length) $('dCol').value = keep;
+    drawCol();
+  }
+  function drawCol() {
+    const d = st.data[$('dSheet').value], i = +$('dCol').value;
+    if (!d) return bars($('chartCol'), []);
+    const c = {};
+    d.rows.forEach(r => { const k = String(r[i] ?? '').trim() || '(ว่าง)'; c[k] = (c[k] || 0) + 1; });
+    bars($('chartCol'), Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 8));
+  }
+  $('dSheet').onchange = async () => {
+    st.active = $('dSheet').value; st.page = 1;
+    try { await loadSheet(st.active); } catch (e) {}
+    fillCols(); renderTabs(); renderTable();
+  };
+  $('dCol').onchange = drawCol;
+
+  /* ---------- ตารางฐานข้อมูล ---------- */
+  function renderTabs() {
+    $('sheetTabs').innerHTML = '';
+    st.sheets.forEach(s => {
+      const b = document.createElement('button');
+      b.className = 'tab' + (s.name === st.active ? ' on' : '');
+      b.textContent = s.name + ' (' + s.rows.toLocaleString() + ')';
+      b.onclick = async () => {
+        st.active = s.name; st.page = 1;
+        try { await loadSheet(s.name); } catch (e) { say($('importStatus'), e.message, 'err'); }
+        renderTabs(); renderTable(); $('dSheet').value = s.name; fillCols();
+      };
+      $('sheetTabs').appendChild(b);
+    });
+  }
+  function filtered() {
+    const d = st.data[st.active]; if (!d) return [];
+    const q = $('search').value.trim().toLowerCase();
+    return q ? d.rows.filter(r => r.some(c => String(c).toLowerCase().includes(q))) : d.rows;
+  }
+  function renderTable() {
+    const d = st.data[st.active] || { header: [], rows: [], total: 0 };
+    const rows = filtered();
+    const ps = $('pageSize').value === 'all' ? 1000 : +$('pageSize').value;
+    const pages = Math.max(1, Math.ceil(rows.length / ps));
+    st.page = Math.min(st.page, pages);
+    const sl = rows.slice((st.page - 1) * ps, st.page * ps);
+    $('patientHead').innerHTML = '<tr>' + d.header.map(h => `<th>${esc(h)}</th>`).join('') + '</tr>';
+    $('patientBody').innerHTML = sl.length ? sl.map(r => '<tr>' + d.header.map((_, i) => `<td>${esc(r[i])}</td>`).join('') + '</tr>').join('') : '<tr><td class="hint">ไม่พบข้อมูล</td></tr>';
+    $('listSummary').textContent = st.active ? st.active + ': ' + d.total.toLocaleString() + ' แถว' : '-';
+    $('paginationInfo').textContent = `หน้า ${st.page} / ${pages} · แสดง ${sl.length} จาก ${rows.length.toLocaleString()}`;
+    $('prevPage').disabled = st.page <= 1; $('nextPage').disabled = st.page >= pages;
+  }
+  $('search').oninput = () => { st.page = 1; renderTable(); };
+  $('pageSize').onchange = () => { st.page = 1; renderTable(); };
+  $('resetFilter').onclick = () => { $('search').value = ''; $('pageSize').value = '25'; st.page = 1; renderTable(); };
+  $('prevPage').onclick = () => { st.page--; renderTable(); };
+  $('nextPage').onclick = () => { st.page++; renderTable(); };
+
+  /* ---------- นำเข้า ---------- */
+  const dz = $('dropzone'), fi = $('fileInput');
+  dz.onclick = () => fi.click();
+  dz.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fi.click(); } };
+  ['dragenter', 'dragover'].forEach(v => dz.addEventListener(v, e => { e.preventDefault(); dz.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(v => dz.addEventListener(v, e => { e.preventDefault(); dz.classList.remove('over'); }));
+  dz.addEventListener('drop', e => importFiles(e.dataTransfer.files));
+  fi.onchange = () => { importFiles(fi.files); fi.value = ''; };
+
+  async function importFiles(files) {
+    if (!files || !files.length) return;
+    const log = []; let added = 0;
+    try {
+      for (const f of files) {
+        say($('importStatus'), 'กำลังอ่าน ' + f.name + '...');
+        const wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+        for (const sn of wb.SheetNames) {
+          const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], { header: 1, raw: false, defval: '', blankrows: false });
+          if (rows.length < 2) { log.push('ข้าม ' + f.name + ' / ' + sn + ' (ไม่มีข้อมูล)'); continue; }
+          const target = (wb.SheetNames.length > 1 || !/\.(csv|tsv|txt)$/i.test(f.name)) ? sn : f.name.replace(/\.[^.]+$/, '');
+          const header = rows[0], body = rows.slice(1);
+          for (let i = 0; i < body.length; i += CHUNK) {
+            say($('importStatus'), `กำลังอัปโหลด ${target} ${Math.min(i + CHUNK, body.length)}/${body.length}...`);
+            added += (await run('importData', 'report', { sheet: target, rows: [header].concat(body.slice(i, i + CHUNK)) })).added;
+          }
+          log.push(`✓ ${f.name} → ชีต "${target}" (${body.length} แถว)`);
+        }
+      }
+      say($('importStatus'), `นำเข้าสำเร็จ ${added.toLocaleString()} แถว\n` + log.join('\n'), 'ok');
+      refresh();
+    } catch (e) { say($('importStatus'), 'นำเข้าไม่สำเร็จ: ' + e.message + '\n' + log.join('\n'), 'err'); }
+  }
+
+  /* ---------- ส่งออก ---------- */
+  const aoa = d => [d.header].concat(d.rows);
+  const loaded = () => Object.keys(st.data).filter(n => st.data[n].header.length);
+  const guard = () => loaded().length || (say($('exportStatus'), 'ยังไม่มีข้อมูลในเบราว์เซอร์ กรุณากด "โหลดใหม่" ก่อน', 'err'), false);
+  $('exportXlsx').onclick = () => {
+    if (!guard()) return;
+    const wb = XLSX.utils.book_new();
+    loaded().forEach(n => XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa(st.data[n])), n.slice(0, 31)));
+    XLSX.writeFile(wb, 'REPORT_' + stamp() + '.xlsx');
+    say($('exportStatus'), 'ส่งออก Excel แล้ว (เฉพาะชีตที่เปิดดูแล้ว)', 'ok');
+  };
+  $('exportCsv').onclick = () => {
+    if (!guard()) return;
+    const csv = XLSX.utils.sheet_to_csv(XLSX.utils.aoa_to_sheet(aoa(st.data[st.active])));
+    dl(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }), `REPORT_${st.active}_${stamp()}.csv`);
+    say($('exportStatus'), `ส่งออก CSV ชีต "${st.active}" แล้ว`, 'ok');
+  };
+  $('backupJson').onclick = () => {
+    if (!guard()) return;
+    dl(new Blob([JSON.stringify({ exported: new Date().toISOString(), data: st.data }, null, 2)], { type: 'application/json' }), 'backup_REPORT_' + stamp() + '.json');
+    say($('exportStatus'), 'สำรองข้อมูล JSON แล้ว', 'ok');
+  };
+
+  show(); refresh();
+})();
+</script>
+</body>
+</html>
