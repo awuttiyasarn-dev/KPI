@@ -12,8 +12,7 @@ const state = {
 const $ = id => document.getElementById(id);
 const PAGE_INFO = {
   dashboard: ["ภาพรวมข้อมูล", "ภาพรวม Google Spreadsheet และข้อมูลทั้งหมด"],
-  database: ["สำรวจข้อมูล", "ค้นหา ดูตาราง และวิเคราะห์ข้อมูล"],
-  sheets: ["รายการ Sheets", "จัดการและสำรวจทุก Sheet"],
+  database: ["ฐานข้อมูล", "เลือก Sheet ค้นหา ดูตาราง และวิเคราะห์ข้อมูล"],
   upload: ["นำเข้าข้อมูล", "อัปโหลด Excel/CSV ไปยัง Google Sheets"],
   export: ["ส่งออกข้อมูล", "ดาวน์โหลดข้อมูลเป็น Excel, CSV และ JSON"]
 };
@@ -98,7 +97,7 @@ async function loadSheets() {
   setStatus("กำลังโหลด");
   const result = await api("sheets");
   state.sheets = Array.isArray(result.sheets) ? result.sheets : [];
-  updateSheetSelectors(); renderDashboardSheets(); renderSheetsTable(); renderSheetChart();
+  updateSheetSelectors(); renderDashboardSheets(); renderSheetChart();
   const rows = state.sheets.reduce((s, i) => s + Number(i.rows || 0), 0);
   const cols = state.sheets.reduce((s, i) => s + Number(i.columns || 0), 0);
   $("kpiSheets").textContent = formatNumber(state.sheets.length);
@@ -144,17 +143,6 @@ function renderDashboardSheets() {
       <div style="min-width:0"><div class="sheet-item-name">${escapeHtml(i.name)}</div>
       <div class="sheet-item-meta">${formatNumber(i.rows)} แถว · ${formatNumber(i.columns)} คอลัมน์</div></div>
       <span style="color:#2474d2">→</span></button>`).join("");
-  bindOpenSheet(t);
-}
-
-function renderSheetsTable() {
-  const t = $("sheetsTableBody"), f = $("sheetFilter").value.trim().toLowerCase();
-  const items = state.sheets.filter(i => i.name.toLowerCase().includes(f));
-  if (!items.length) { t.innerHTML = '<tr><td colspan="5" class="table-empty">ไม่พบ Sheet ที่ตรงกับคำค้นหา</td></tr>'; return; }
-  t.innerHTML = items.map((i, n) => `
-    <tr><td>${n + 1}</td><td><span class="sheet-chip">${escapeHtml(i.name)}</span></td>
-    <td>${formatNumber(i.rows)}</td><td>${formatNumber(i.columns)}</td>
-    <td><button class="btn btn-light" data-open-sheet="${escapeHtml(i.name)}">เปิดข้อมูล</button></td></tr>`).join("");
   bindOpenSheet(t);
 }
 
@@ -431,11 +419,8 @@ const on = (id, ev, fn) => $(id).addEventListener(ev, fn);
 const guard = fn => () => { try { const r = fn(); if (r && r.catch) r.catch(showError); } catch (e) { showError(e); } };
 
 on("btnCheckHealth", "click", guard(checkHealth));
-on("navHealth", "click", guard(checkHealth));
-on("navRefresh", "click", guard(async () => { await loadSheets(); await checkHealth(); if (state.currentSheet) await loadTableData(); }));
 on("btnReloadSheets", "click", guard(loadSheets));
-on("btnRefreshSheetList", "click", guard(loadSheets));
-on("sheetFilter", "input", renderSheetsTable);
+on("btnRefreshDb", "click", guard(async () => { await loadSheets(); if (state.currentSheet) await loadTableData(); }));
 on("dataSheet", "change", e => selectSheet(e.target.value).catch(showError));
 on("btnSearch", "click", guard(searchCurrent));
 on("searchInput", "keydown", e => { if (e.key === "Enter") searchCurrent().catch(showError); });
@@ -488,7 +473,6 @@ async function init() {
     console.error(err);
     const m = escapeHtml(err.message || String(err));
     $("dashboardSheetList").innerHTML = '<div class="notice error">' + m + "</div>";
-    $("sheetsTableBody").innerHTML = '<tr><td colspan="5" class="table-empty">' + m + "</td></tr>";
   }
 }
 init();
