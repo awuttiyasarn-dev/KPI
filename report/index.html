@@ -1,494 +1,130 @@
-"use strict";
-/* ===== 1. CONFIG ===== */
-const API_URL = "https://script.google.com/macros/s/AKfycbyDVuHOl48Fke6Sb7D-MsVSUC4lPlOpe03mw63JdNtn9OU5Y1cGW_64Ly15JUA4p4qF/exec";
-const IMPORT_BATCH = 500;
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#102c46">
+<title>REPORT | Data Intelligence Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23102c46'/%3E%3Ctext x='50' y='68' font-size='58' font-weight='800' text-anchor='middle' fill='white' font-family='Arial'%3ER%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+<aside class="sidebar" id="sidebar">
+  <div class="brand"><div class="brand-mark">R</div><div><div class="brand-title">REPORT</div><div class="brand-sub">Data Intelligence Platform</div></div></div>
+  <div>
+    <div class="nav-label">WORKSPACE</div>
+    <button class="nav-btn active" data-view="dashboard"><span class="nav-icon">▦</span> ภาพรวมข้อมูล</button>
+    <button class="nav-btn" data-view="database"><span class="nav-icon">▤</span> สำรวจข้อมูล</button>
+    <button class="nav-btn" data-view="sheets"><span class="nav-icon">▧</span> รายการ Sheets</button>
+    <button class="nav-btn" data-view="upload"><span class="nav-icon">⇧</span> นำเข้าข้อมูล</button>
+    <button class="nav-btn" data-view="export"><span class="nav-icon">⇩</span> ส่งออกข้อมูล</button>
+  </div>
+  <div>
+    <div class="nav-label">SYSTEM</div>
+    <button class="nav-btn" id="navRefresh"><span class="nav-icon">↻</span> รีเฟรชข้อมูล</button>
+    <button class="nav-btn" id="navHealth"><span class="nav-icon">◉</span> ตรวจสอบ API</button>
+  </div>
+  <div class="sidebar-footer">REPORT DATA SYSTEM<br>Google Sheets · Apps Script<br><span id="sideVersion">Waiting for connection</span></div>
+</aside>
 
-const state = {
-  sheets: [], currentSheet: "", currentPage: 1, pageSize: 25, search: "",
-  currentHeader: [], currentRows: [], totalRows: 0, totalPages: 0,
-  distributionChart: null, sheetChart: null, exportData: null,
-  workbookRows: [], workbookHeader: [], workbookName: "", importing: false
-};
-const $ = id => document.getElementById(id);
-const PAGE_INFO = {
-  dashboard: ["ภาพรวมข้อมูล", "ภาพรวม Google Spreadsheet และข้อมูลทั้งหมด"],
-  database: ["สำรวจข้อมูล", "ค้นหา ดูตาราง และวิเคราะห์ข้อมูล"],
-  sheets: ["รายการ Sheets", "จัดการและสำรวจทุก Sheet"],
-  upload: ["นำเข้าข้อมูล", "อัปโหลด Excel/CSV ไปยัง Google Sheets"],
-  export: ["ส่งออกข้อมูล", "ดาวน์โหลดข้อมูลเป็น Excel, CSV และ JSON"]
-};
+<main class="main">
+<header class="topbar">
+  <div style="display:flex;align-items:flex-start;min-width:0">
+    <button class="mobile-menu" id="mobileMenu" aria-label="เปิดเมนู">☰</button>
+    <div><div class="eyebrow">DATA MANAGEMENT SYSTEM</div><h1 id="pageTitle">ภาพรวมข้อมูล</h1><div class="subtitle" id="pageSubtitle">ภาพรวม Google Spreadsheet และข้อมูลทั้งหมด</div></div>
+  </div>
+  <div class="status-pill"><span class="dot" id="statusDot"></span><span id="statusText">กำลังเชื่อมต่อ</span></div>
+</header>
 
-/* ===== 2. API CLIENT (POST + รหัสเข้าใช้งาน) ===== */
-let ACCESS_KEY = sessionStorage.getItem("reportKey") || "";
+<section class="view active" id="view-dashboard">
+  <div class="grid">
+    <div class="card"><div class="kpi-top"><div class="kpi-label">จำนวน Sheets</div><div class="kpi-icon">▤</div></div><div class="kpi-value" id="kpiSheets">—</div><div class="kpi-note">ชีตทั้งหมดใน Spreadsheet</div></div>
+    <div class="card"><div class="kpi-top"><div class="kpi-label">จำนวนแถวข้อมูล</div><div class="kpi-icon" style="background:#e8f8f2;color:#0d9b78">▥</div></div><div class="kpi-value" id="kpiRows">—</div><div class="kpi-note">ผลรวมจำนวนแถวข้อมูลทุกชีต</div></div>
+    <div class="card"><div class="kpi-top"><div class="kpi-label">จำนวนคอลัมน์</div><div class="kpi-icon" style="background:#f2edff;color:#7955c5">▦</div></div><div class="kpi-value" id="kpiColumns">—</div><div class="kpi-note">รวมจำนวนคอลัมน์ทุกชีต</div></div>
+    <div class="card"><div class="kpi-top"><div class="kpi-label">การเชื่อมต่อ</div><div class="kpi-icon" style="background:#fff4e7;color:#c47b1e">⌁</div></div><div class="kpi-value" id="kpiConnection" style="font-size:24px">—</div><div class="kpi-note" id="lastUpdated">รอการตรวจสอบ</div></div>
+  </div>
+  <div class="two-col">
+    <div class="card"><div class="section-head"><div><div class="section-title">จำนวนแถวแยกตาม Sheet</div><div class="section-sub">เปรียบเทียบขนาดข้อมูลในแต่ละชีต</div></div></div><div class="chart-box"><canvas id="sheetChart"></canvas></div></div>
+    <div class="card"><div class="section-head"><div><div class="section-title">สถานะระบบ</div><div class="section-sub">การเชื่อมต่อ Google Apps Script</div></div></div>
+      <div style="line-height:2.1"><div>API: <strong id="healthService">ยังไม่ตรวจสอบ</strong></div><div>Spreadsheet: <strong id="healthSpreadsheet">—</strong></div><div>จำนวน Sheets: <strong id="healthSheets">—</strong></div><div>ตรวจสอบล่าสุด: <strong id="healthTime">—</strong></div></div>
+      <button class="btn btn-primary" style="margin-top:15px" id="btnCheckHealth">ตรวจสอบระบบ</button></div>
+  </div>
+  <div class="card"><div class="section-head"><div><div class="section-title">Sheets ทั้งหมด</div><div class="section-sub">เลือกชีตเพื่อเปิดดูข้อมูลได้ทันที</div></div><button class="btn btn-light" id="btnReloadSheets">↻ รีเฟรช</button></div>
+    <div class="sheet-list" id="dashboardSheetList"><div class="table-empty">กำลังโหลดรายชื่อ Sheet...</div></div></div>
+</section>
 
-async function api(action, params = {}) {
-  const res = await fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ action, key: ACCESS_KEY, params })
-  });
-  let data;
-  try { data = await res.json(); }
-  catch (_) { throw new Error("เรียก API ไม่สำเร็จ กรุณาตรวจสอบ URL และการ Deploy (ต้องเป็น Anyone)"); }
-  if (!data || data.ok === false) throw new Error((data && data.error) || "API ทำงานไม่สำเร็จ");
-  return data;
-}
+<section class="view" id="view-database">
+  <div class="card">
+    <div class="section-head"><div><div class="section-title">สำรวจข้อมูล</div><div class="section-sub">ค้นหา ดูตาราง และวิเคราะห์การกระจายของข้อมูล</div></div><span class="sheet-chip" id="dataSheetBadge">ยังไม่เลือก Sheet</span></div>
+    <div class="toolbar">
+      <div class="field"><label for="dataSheet">Sheet</label><select class="select" id="dataSheet"><option value="">กำลังโหลด...</option></select></div>
+      <div class="field grow"><label for="searchInput">ค้นหาข้อมูลทุกคอลัมน์</label><input class="input" id="searchInput" placeholder="พิมพ์คำค้นหา..."></div>
+      <div class="field"><label for="pageSize">จำนวนแถวต่อหน้า</label><select class="select" id="pageSize"><option value="10">10 แถว</option><option value="25" selected>25 แถว</option><option value="50">50 แถว</option><option value="100">100 แถว</option></select></div>
+      <button class="btn btn-primary" id="btnSearch">ค้นหา</button>
+    </div>
+    <div class="table-wrap"><table id="dataTable"><thead><tr><th>ข้อมูล</th></tr></thead><tbody><tr><td class="table-empty">เลือก Sheet เพื่อเริ่มต้น</td></tr></tbody></table></div>
+    <div class="table-footer"><div class="muted" id="tableInfo">ยังไม่มีข้อมูล</div><div class="pagination"><button class="btn btn-light" id="btnPrev">← ก่อนหน้า</button><span class="page-label" id="pageInfo">หน้า 1 / 1</span><button class="btn btn-light" id="btnNext">ถัดไป →</button></div></div>
+  </div>
+  <div class="card" style="margin-top:18px">
+    <div class="section-head"><div><div class="section-title">การกระจายตัวของข้อมูล</div><div class="section-sub">นับความถี่ของแต่ละค่าในคอลัมน์ที่เลือก</div></div></div>
+    <div class="toolbar"><div class="field grow"><label for="distributionColumn">คอลัมน์ที่ต้องการวิเคราะห์</label><select class="select" id="distributionColumn"><option value="">โหลดข้อมูลก่อน</option></select></div><button class="btn btn-primary" id="btnDistribution">วิเคราะห์</button></div>
+    <div class="chart-box"><canvas id="distributionChart"></canvas></div><div class="muted" id="distributionInfo" style="margin-top:10px"></div>
+  </div>
+</section>
 
-async function ensureKey() {
-  while (true) {
-    if (!ACCESS_KEY) {
-      ACCESS_KEY = (prompt("ใส่รหัสเข้าใช้งานระบบ") || "").trim();
-      if (!ACCESS_KEY) throw new Error("ต้องใส่รหัสเข้าใช้งาน");
-    }
-    try {
-      await api("health");
-      sessionStorage.setItem("reportKey", ACCESS_KEY);
-      return;
-    } catch (err) {
-      if (!/รหัส/.test(err.message)) throw err;
-      ACCESS_KEY = "";
-      sessionStorage.removeItem("reportKey");
-      alert("รหัสเข้าใช้งานไม่ถูกต้อง");
-    }
-  }
-}
+<section class="view" id="view-sheets">
+  <div class="card">
+    <div class="section-head"><div><div class="section-title">รายการ Google Sheets</div><div class="section-sub">ระบบดึงรายชื่อ Sheet จาก Spreadsheet โดยอัตโนมัติ</div></div><button class="btn btn-primary" id="btnRefreshSheetList">↻ โหลดทุก Sheet</button></div>
+    <div class="field" style="margin-bottom:16px"><label for="sheetFilter">กรองชื่อ Sheet</label><input class="input" id="sheetFilter" placeholder="ค้นหาชื่อ Sheet..."></div>
+    <div class="table-wrap"><table><thead><tr><th>ลำดับ</th><th>ชื่อ Sheet</th><th>จำนวนแถวข้อมูล</th><th>จำนวนคอลัมน์</th><th>การทำงาน</th></tr></thead><tbody id="sheetsTableBody"><tr><td colspan="5" class="table-empty">กำลังโหลด...</td></tr></tbody></table></div>
+  </div>
+</section>
 
-/* ===== 3. UTILITIES ===== */
-function escapeHtml(v) {
-  return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-}
-const formatNumber = v => Number(v || 0).toLocaleString("th-TH");
-function setStatus(text, type = "") { $("statusText").textContent = text; $("statusDot").className = "dot" + (type ? " " + type : ""); }
-function setNotice(id, msg, type = "info") { $(id).innerHTML = '<div class="notice ' + type + '">' + escapeHtml(msg) + "</div>"; }
-function clearNotice(id) { $(id).innerHTML = ""; }
-function downloadBlob(blob, name) {
-  const url = URL.createObjectURL(blob), a = document.createElement("a");
-  a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1500);
-}
-function csvEscape(v) {
-  let t = String(v == null ? "" : v);
-  if (/^\s*[=+@]/.test(t) || /^\s*-[0-9]/.test(t)) t = "'" + t;
-  return '"' + t.replace(/"/g, '""') + '"';
-}
-const rowsToCsv = (h, rows) => "\uFEFF" + [h, ...rows].map(r => r.map(csvEscape).join(",")).join("\r\n");
-function dateStamp() {
-  const d = new Date();
-  return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("");
-}
-const safeFilename = v => String(v || "report").replace(/[\\/:*?"<>|]/g, "_");
+<section class="view" id="view-upload">
+  <div class="card">
+    <div class="section-head"><div><div class="section-title">นำเข้าไฟล์ข้อมูล</div><div class="section-sub">รองรับ Excel และ CSV พร้อมส่งข้อมูลไปยัง Google Sheets</div></div></div>
+    <div class="upload-zone" id="dropZone"><div class="upload-icon">⇧</div><div class="upload-title">ลากไฟล์มาวางที่นี่</div><div class="upload-sub">หรือเลือกไฟล์จากคอมพิวเตอร์ (.xlsx, .xls, .csv)</div>
+      <div style="margin-top:18px"><button class="btn btn-primary" id="btnChooseFile">เลือกไฟล์</button><input class="hidden" type="file" id="fileInput" accept=".xlsx,.xls,.csv"></div>
+      <div class="muted" id="fileName" style="margin-top:12px">ยังไม่ได้เลือกไฟล์</div></div>
+    <div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:18px">
+      <div class="field"><label for="importSheet">Sheet ปลายทาง</label><select class="select" id="importSheet"><option value="">เลือก Sheet ปลายทาง</option></select></div>
+      <div class="field"><label for="newSheetName">หรือสร้าง Sheet ใหม่</label><input class="input" id="newSheetName" placeholder="เว้นว่างหากใช้ Sheet เดิม"></div>
+      <div class="field" style="grid-column:1/-1"><label for="writeToken">Write Token</label><input class="input" id="writeToken" type="password" autocomplete="new-password" placeholder="ใส่ REPORT_WRITE_TOKEN ที่ตั้งไว้ใน Script Properties"></div>
+    </div>
+    <label class="check-row"><input type="checkbox" id="replaceData"><span>แทนที่ข้อมูลเดิมทั้งหมดใน Sheet ปลายทาง</span></label>
+    <div class="notice warn"><strong>ข้อควรระวัง:</strong> การแทนที่ข้อมูลจะล้างข้อมูลเดิมในชีตปลายทางก่อนเขียนข้อมูลใหม่ ตรวจสอบชื่อ Sheet และไฟล์ก่อนนำเข้าเสมอ</div>
+    <div style="margin-top:17px"><div class="section-title" style="font-size:13px">ตัวอย่างข้อมูลที่จะนำเข้า</div><div class="muted" id="previewInfo" style="margin:5px 0 10px">เลือกไฟล์เพื่อดูตัวอย่าง</div>
+      <div class="table-wrap"><table id="previewTable"><tbody><tr><td class="table-empty">ยังไม่มีข้อมูลตัวอย่าง</td></tr></tbody></table></div></div>
+    <div class="progress-track"><div class="progress-bar" id="importProgress"></div></div>
+    <div class="muted" id="progressText" style="margin-top:7px">รอการนำเข้า</div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:16px"><button class="btn btn-green" id="btnImport" disabled>⇧ เริ่มนำเข้าข้อมูล</button><button class="btn btn-light" id="btnClearFile">ล้างไฟล์ที่เลือก</button></div>
+    <div id="importResult"></div>
+  </div>
+</section>
 
-/* ===== 4. NAVIGATION ===== */
-function showView(name) {
-  if (!PAGE_INFO[name]) return;
-  document.querySelectorAll(".view").forEach(el => el.classList.toggle("active", el.id === "view-" + name));
-  document.querySelectorAll(".nav-btn[data-view]").forEach(el => el.classList.toggle("active", el.dataset.view === name));
-  $("pageTitle").textContent = PAGE_INFO[name][0];
-  $("pageSubtitle").textContent = PAGE_INFO[name][1];
-  $("sidebar").classList.remove("open");
-  if (name === "database" && state.sheets.length) selectSheet(state.currentSheet || state.sheets[0].name).catch(showError);
-  if (name === "export" && !state.exportData) loadExportData().catch(showError);
-}
-document.querySelectorAll(".nav-btn[data-view]").forEach(b => b.addEventListener("click", () => showView(b.dataset.view)));
-$("mobileMenu").addEventListener("click", () => $("sidebar").classList.toggle("open"));
+<section class="view" id="view-export">
+  <div class="card">
+    <div class="section-head"><div><div class="section-title">ส่งออกข้อมูล</div><div class="section-sub">ดาวน์โหลดข้อมูลจาก Google Sheets ลงในเครื่อง</div></div></div>
+    <div class="toolbar"><div class="field grow"><label for="exportSheet">เลือก Sheet</label><select class="select" id="exportSheet"><option value="">ทุก Sheet</option></select></div><button class="btn btn-primary" id="btnLoadExport">โหลดข้อมูล</button></div>
+    <div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+      <div class="card" style="box-shadow:none"><div class="kpi-label">จำนวน Sheets</div><div class="kpi-value" id="exportSheetCount">—</div></div>
+      <div class="card" style="box-shadow:none"><div class="kpi-label">จำนวนแถวข้อมูล</div><div class="kpi-value" id="exportRowCount">—</div></div>
+      <div class="card" style="box-shadow:none"><div class="kpi-label">สถานะ</div><div class="kpi-value" id="exportStatus" style="font-size:20px">รอโหลด</div></div>
+    </div>
+    <div class="toolbar"><button class="btn btn-green" id="btnExportXlsx" disabled>Excel (.xlsx)</button><button class="btn btn-primary" id="btnExportCsv" disabled>CSV (.csv)</button><button class="btn btn-dark" id="btnExportJson" disabled>JSON (.json)</button></div>
+    <div class="notice info">ส่งออกได้สูงสุด 10,000 แถวข้อมูลต่อ Sheet ตามค่าตั้งต้นใน Code.gs · CSV ส่งออกได้ครั้งละ 1 Sheet (หลาย Sheet ให้ใช้ Excel หรือ JSON)</div>
+    <div id="exportWarnings"></div>
+  </div>
+</section>
 
-/* ===== 5. SHEETS ===== */
-async function loadSheets() {
-  setStatus("กำลังโหลด");
-  const result = await api("sheets");
-  state.sheets = Array.isArray(result.sheets) ? result.sheets : [];
-  updateSheetSelectors(); renderDashboardSheets(); renderSheetsTable(); renderSheetChart();
-  const rows = state.sheets.reduce((s, i) => s + Number(i.rows || 0), 0);
-  const cols = state.sheets.reduce((s, i) => s + Number(i.columns || 0), 0);
-  $("kpiSheets").textContent = formatNumber(state.sheets.length);
-  $("kpiRows").textContent = formatNumber(rows);
-  $("kpiColumns").textContent = formatNumber(cols);
-  $("lastUpdated").textContent = "อัปเดต " + new Date().toLocaleTimeString("th-TH");
-  $("sideVersion").textContent = state.sheets.length + " Sheets loaded";
-  setStatus("เชื่อมต่อแล้ว", "ok");
-  return result;
-}
-
-function updateSheetSelectors() {
-  ["dataSheet", "importSheet"].forEach(id => {
-    const sel = $(id), prev = sel.value;
-    sel.innerHTML = "";
-    if (!state.sheets.length) { sel.add(new Option("ไม่พบ Sheet", "")); return; }
-    sel.add(new Option("เลือก Sheet", ""));
-    state.sheets.forEach(i => sel.add(new Option(i.name, i.name)));
-    if (state.sheets.some(i => i.name === prev)) sel.value = prev;
-  });
-  const ex = $("exportSheet"), prevEx = ex.value;
-  ex.innerHTML = "";
-  ex.add(new Option("ทุก Sheet", ""));
-  state.sheets.forEach(i => ex.add(new Option(i.name, i.name)));
-  if (state.sheets.some(i => i.name === prevEx)) ex.value = prevEx;
-
-  if (!state.sheets.some(i => i.name === state.currentSheet)) state.currentSheet = state.sheets.length ? state.sheets[0].name : "";
-  $("dataSheet").value = state.currentSheet;
-}
-
-function bindOpenSheet(root) {
-  root.querySelectorAll("[data-open-sheet]").forEach(b => b.addEventListener("click", () => {
-    showView("database");
-    selectSheet(b.dataset.openSheet).catch(showError);
-  }));
-}
-
-function renderDashboardSheets() {
-  const t = $("dashboardSheetList");
-  if (!state.sheets.length) { t.innerHTML = '<div class="table-empty">ไม่พบ Sheet ใน Spreadsheet</div>'; return; }
-  t.innerHTML = state.sheets.map(i => `
-    <button class="sheet-item" data-open-sheet="${escapeHtml(i.name)}">
-      <div style="min-width:0"><div class="sheet-item-name">${escapeHtml(i.name)}</div>
-      <div class="sheet-item-meta">${formatNumber(i.rows)} แถว · ${formatNumber(i.columns)} คอลัมน์</div></div>
-      <span style="color:#2474d2">→</span></button>`).join("");
-  bindOpenSheet(t);
-}
-
-function renderSheetsTable() {
-  const t = $("sheetsTableBody"), f = $("sheetFilter").value.trim().toLowerCase();
-  const items = state.sheets.filter(i => i.name.toLowerCase().includes(f));
-  if (!items.length) { t.innerHTML = '<tr><td colspan="5" class="table-empty">ไม่พบ Sheet ที่ตรงกับคำค้นหา</td></tr>'; return; }
-  t.innerHTML = items.map((i, n) => `
-    <tr><td>${n + 1}</td><td><span class="sheet-chip">${escapeHtml(i.name)}</span></td>
-    <td>${formatNumber(i.rows)}</td><td>${formatNumber(i.columns)}</td>
-    <td><button class="btn btn-light" data-open-sheet="${escapeHtml(i.name)}">เปิดข้อมูล</button></td></tr>`).join("");
-  bindOpenSheet(t);
-}
-
-function barOptions() {
-  return {
-    indexAxis: "y", responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: { x: { beginAtZero: true }, y: { ticks: { autoSkip: false, font: { size: 10 } } } }
-  };
-}
-
-function renderSheetChart() {
-  if (state.sheetChart) { state.sheetChart.destroy(); state.sheetChart = null; }
-  if (!state.sheets.length) return;
-  const sorted = [...state.sheets].sort((a, b) => Number(b.rows || 0) - Number(a.rows || 0)).slice(0, 15);
-  state.sheetChart = new Chart($("sheetChart"), {
-    type: "bar",
-    data: { labels: sorted.map(i => i.name), datasets: [{ label: "จำนวนแถวข้อมูล", data: sorted.map(i => Number(i.rows || 0)), backgroundColor: "#2474d2", borderRadius: 5, maxBarThickness: 28 }] },
-    options: barOptions()
-  });
-}
-
-/* ===== 6. HEALTH ===== */
-async function checkHealth() {
-  try {
-    const r = await api("health");
-    $("kpiConnection").textContent = "Online";
-    $("healthService").textContent = r.service || "REPORT API";
-    $("healthSpreadsheet").textContent = r.spreadsheet || "เชื่อมต่อแล้ว";
-    $("healthSheets").textContent = formatNumber(r.sheetCount);
-    $("healthTime").textContent = new Date().toLocaleString("th-TH");
-    setStatus("เชื่อมต่อแล้ว", "ok");
-    return r;
-  } catch (err) {
-    $("kpiConnection").textContent = "Offline";
-    $("healthService").textContent = "ไม่สามารถเชื่อมต่อ";
-    $("healthTime").textContent = new Date().toLocaleString("th-TH");
-    setStatus("เชื่อมต่อไม่สำเร็จ", "error");
-    throw err;
-  }
-}
-
-/* ===== 7. TABLE + PAGINATION ===== */
-async function selectSheet(name) {
-  if (!name) return;
-  if (name !== state.currentSheet) { state.currentPage = 1; $("searchInput").value = ""; }
-  state.currentSheet = name;
-  $("dataSheet").value = name;
-  await loadTableData();
-}
-
-async function loadTableData() {
-  const name = $("dataSheet").value || state.currentSheet;
-  if (!name) return;
-  state.currentSheet = name;
-  state.pageSize = Number($("pageSize").value) || 25;
-  state.search = $("searchInput").value.trim();
-  $("dataSheetBadge").textContent = name;
-
-  const r = await api("data", { sheet: name, page: state.currentPage, pageSize: state.pageSize, search: state.search });
-  state.currentHeader = Array.isArray(r.header) ? r.header : [];
-  state.currentRows = Array.isArray(r.rows) ? r.rows : [];
-  state.totalRows = Number(r.total || 0);
-  state.totalPages = Number(r.totalPages ?? r.pages ?? 0);
-  state.currentPage = Number(r.page || 1);
-  renderDataTable(); renderDistributionColumns(); updatePagination();
-}
-
-function renderDataTable() {
-  const t = $("dataTable");
-  if (!state.currentHeader.length) { t.innerHTML = '<tbody><tr><td class="table-empty">Sheet นี้ยังไม่มีข้อมูล</td></tr></tbody>'; return; }
-  const head = "<thead><tr>" + state.currentHeader.map((n, i) => `<th title="${escapeHtml(n)}">${escapeHtml(n || "Column " + (i + 1))}</th>`).join("") + "</tr></thead>";
-  const body = state.currentRows.length
-    ? "<tbody>" + state.currentRows.map(r => "<tr>" + state.currentHeader.map((_, i) => `<td title="${escapeHtml(r[i] ?? "")}">${escapeHtml(r[i] ?? "")}</td>`).join("") + "</tr>").join("") + "</tbody>"
-    : `<tbody><tr><td class="table-empty" colspan="${state.currentHeader.length}">ไม่พบข้อมูลที่ตรงกับคำค้นหา</td></tr></tbody>`;
-  t.innerHTML = head + body;
-}
-
-function updatePagination() {
-  const start = state.totalRows ? (state.currentPage - 1) * state.pageSize + 1 : 0;
-  const end = Math.min(state.currentPage * state.pageSize, state.totalRows);
-  $("tableInfo").textContent = `แสดง ${formatNumber(start)}–${formatNumber(end)} จาก ${formatNumber(state.totalRows)} แถว`;
-  $("pageInfo").textContent = `หน้า ${state.currentPage} / ${Math.max(1, state.totalPages)}`;
-  $("btnPrev").disabled = state.currentPage <= 1;
-  $("btnNext").disabled = state.totalPages === 0 || state.currentPage >= state.totalPages;
-}
-
-function renderDistributionColumns() {
-  const sel = $("distributionColumn"), prev = sel.value;
-  sel.innerHTML = "";
-  if (!state.currentHeader.length) { sel.add(new Option("ไม่มีคอลัมน์", "")); return; }
-  state.currentHeader.forEach((h, i) => sel.add(new Option(h || "Column " + (i + 1), String(i))));
-  if (prev !== "" && Number(prev) < state.currentHeader.length) sel.value = prev;
-}
-
-async function searchCurrent() { state.currentPage = 1; await loadTableData(); }
-
-/* ===== 8. DISTRIBUTION ===== */
-async function loadDistribution() {
-  const sheet = $("dataSheet").value || state.currentSheet, col = $("distributionColumn").value;
-  if (!sheet || col === "") throw new Error("กรุณาเลือก Sheet และคอลัมน์ก่อน");
-  const r = await api("distribution", { sheet, columnIndex: Number(col) });
-  const items = Array.isArray(r.items) ? r.items : [];
-  if (state.distributionChart) { state.distributionChart.destroy(); state.distributionChart = null; }
-  state.distributionChart = new Chart($("distributionChart"), {
-    type: "bar",
-    data: { labels: items.map(i => String(i[0])), datasets: [{ label: "ความถี่", data: items.map(i => Number(i[1])), backgroundColor: "#16b8c9", borderRadius: 5, maxBarThickness: 36 }] },
-    options: barOptions()
-  });
-  $("distributionInfo").textContent = `คอลัมน์ ${r.column || ""} · รวม ${formatNumber(r.total)} ค่า · แสดงไม่เกิน ${formatNumber(items.length)} รายการ`;
-}
-
-/* ===== 9. READ EXCEL / CSV ===== */
-function resetUpload() {
-  state.workbookRows = []; state.workbookHeader = []; state.workbookName = "";
-  $("fileInput").value = "";
-  $("fileName").textContent = "ยังไม่ได้เลือกไฟล์";
-  $("previewInfo").textContent = "เลือกไฟล์เพื่อดูตัวอย่าง";
-  $("previewTable").innerHTML = '<tbody><tr><td class="table-empty">ยังไม่มีข้อมูลตัวอย่าง</td></tr></tbody>';
-  $("btnImport").disabled = true;
-  $("importProgress").style.width = "0%";
-  $("progressText").textContent = "รอการนำเข้า";
-  clearNotice("importResult");
-}
-
-async function readUploadFile(file) {
-  if (!file) return;
-  const ext = file.name.split(".").pop().toLowerCase();
-  if (!["xlsx", "xls", "csv"].includes(ext)) throw new Error("รองรับเฉพาะไฟล์ .xlsx, .xls และ .csv");
-  if (file.size > 50 * 1024 * 1024) throw new Error("ไฟล์มีขนาดเกิน 50 MB กรุณาแบ่งไฟล์ก่อนนำเข้า");
-  if (!window.XLSX) throw new Error("ไม่สามารถโหลดไลบรารีอ่าน Excel ได้");
-
-  const wb = XLSX.read(await file.arrayBuffer(), { type: "array", raw: false, cellDates: false });
-  if (!wb.SheetNames.length) throw new Error("ไม่พบ Sheet ภายในไฟล์");
-  const matrix = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: false, blankrows: false });
-  if (!matrix.length) throw new Error("ไฟล์ไม่มีข้อมูล");
-
-  const header = matrix[0].map(v => String(v ?? "").trim());
-  if (!header.length || header.every(v => v === "")) throw new Error("ไม่พบแถวหัวคอลัมน์ในไฟล์");
-
-  const rows = matrix.slice(1)
-    .filter(r => r.some(v => String(v ?? "").trim() !== ""))
-    .map(r => { const n = r.slice(0, header.length); while (n.length < header.length) n.push(""); return n.map(v => String(v ?? "")); });
-  if (!rows.length) throw new Error("ไม่พบแถวข้อมูลใต้หัวคอลัมน์");
-
-  state.workbookHeader = header; state.workbookRows = rows; state.workbookName = file.name;
-  $("fileName").textContent = `${file.name} · ${formatNumber(rows.length)} แถว · ${header.length} คอลัมน์`;
-  $("previewInfo").textContent = `Sheet ต้นทาง: ${wb.SheetNames[0]} · แสดงตัวอย่างไม่เกิน 10 แถว`;
-  renderPreviewTable();
-  $("btnImport").disabled = false;
-  clearNotice("importResult");
-}
-
-function renderPreviewTable() {
-  const h = state.workbookHeader, rows = state.workbookRows.slice(0, 10);
-  $("previewTable").innerHTML =
-    "<thead><tr>" + h.map(v => `<th>${escapeHtml(v)}</th>`).join("") + "</tr></thead>" +
-    "<tbody>" + rows.map(r => "<tr>" + h.map((_, i) => `<td>${escapeHtml(r[i] ?? "")}</td>`).join("") + "</tr>").join("") + "</tbody>";
-}
-
-/* ===== 10. IMPORT ===== */
-async function importFile() {
-  if (state.importing) return;
-  if (!state.workbookHeader.length || !state.workbookRows.length) throw new Error("กรุณาเลือกไฟล์และตรวจสอบข้อมูลก่อน");
-
-  const token = $("writeToken").value.trim();
-  if (!token) throw new Error("กรุณาใส่ Write Token");
-
-  const newName = $("newSheetName").value.trim();
-  const sheetName = newName || $("importSheet").value;
-  if (!sheetName) throw new Error("กรุณาเลือก Sheet ปลายทางหรือระบุชื่อ Sheet ใหม่");
-  if (sheetName.length > 100 || /[\[\]\*\/\\\?\:]/.test(sheetName)) throw new Error("ชื่อ Sheet ไม่ถูกต้อง");
-
-  const isNew = !state.sheets.some(i => i.name === sheetName);
-  const replace = $("replaceData").checked;
-
-  const ok = window.confirm(replace
-    ? `ยืนยันแทนที่ข้อมูลเดิมใน Sheet "${sheetName}" หรือไม่?\nข้อมูลเดิมจะถูกล้างก่อนนำเข้า`
-    : `ยืนยันนำเข้าข้อมูล ${state.workbookRows.length} แถวไปยัง Sheet "${sheetName}" หรือไม่?`);
-  if (!ok) return;
-
-  state.importing = true;
-  $("btnImport").disabled = true;
-  $("importProgress").style.width = "0%";
-  $("progressText").textContent = "กำลังเริ่มนำเข้า...";
-  clearNotice("importResult");
-
-  try {
-    if (isNew) await api("createSheet", { token, sheet: sheetName, header: state.workbookHeader });
-
-    const rows = state.workbookRows, total = Math.ceil(rows.length / IMPORT_BATCH);
-    let imported = 0;
-
-    for (let b = 0; b < total; b++) {
-      const batch = rows.slice(b * IMPORT_BATCH, (b + 1) * IMPORT_BATCH);
-      await api("import", {
-        token,
-        payload: { sheet: sheetName, header: state.workbookHeader, rows: batch, replace: replace && b === 0 && !isNew }
-      });
-      imported += batch.length;
-      const pct = Math.round(imported / rows.length * 100);
-      $("importProgress").style.width = pct + "%";
-      $("progressText").textContent = `นำเข้าแล้ว ${formatNumber(imported)} / ${formatNumber(rows.length)} แถว (${pct}%)`;
-    }
-
-    setNotice("importResult", `นำเข้าสำเร็จ: ${formatNumber(imported)} แถว ไปยัง Sheet "${sheetName}"`, "success");
-    state.currentSheet = sheetName; state.currentPage = 1;
-    $("searchInput").value = ""; $("newSheetName").value = "";
-    state.exportData = null;
-    await loadSheets();
-    $("importSheet").value = sheetName;
-    await loadTableData();
-  } catch (err) {
-    setNotice("importResult", err.message || String(err), "error");
-    throw err;
-  } finally {
-    state.importing = false;
-    $("btnImport").disabled = !state.workbookRows.length;
-  }
-}
-
-/* ===== 11. EXPORT ===== */
-function setExportButtons(on) { ["btnExportXlsx", "btnExportCsv", "btnExportJson"].forEach(id => $(id).disabled = !on); }
-
-async function loadExportData() {
-  $("exportStatus").textContent = "กำลังโหลด";
-  $("btnLoadExport").disabled = true;
-  try {
-    const sheet = $("exportSheet").value;
-    const r = await api("export", sheet ? { sheet } : {});
-    state.exportData = Array.isArray(r.sheets) ? r.sheets : [];
-    const total = state.exportData.reduce((s, i) => s + (i.rows || []).length, 0);
-    $("exportSheetCount").textContent = formatNumber(state.exportData.length);
-    $("exportRowCount").textContent = formatNumber(total);
-    $("exportStatus").textContent = "พร้อมส่งออก";
-    setExportButtons(state.exportData.length > 0);
-    $("btnExportCsv").disabled = state.exportData.length !== 1;
-    const w = Array.isArray(r.warnings) ? r.warnings : [];
-    $("exportWarnings").innerHTML = w.length ? '<div class="notice warn">' + w.map(escapeHtml).join("<br>") + "</div>" : "";
-    return r;
-  } finally {
-    $("btnLoadExport").disabled = false;
-  }
-}
-
-function exportXlsx() {
-  if (!state.exportData) throw new Error("กรุณาโหลดข้อมูลก่อนส่งออก");
-  const wb = XLSX.utils.book_new();
-  state.exportData.forEach(item => {
-    const ws = XLSX.utils.aoa_to_sheet([item.header || [], ...(item.rows || [])]);
-    let name = String(item.name || "Sheet").slice(0, 31).replace(/[\[\]\*\/\\\?\:]/g, "_");
-    const base = name; let n = 1;
-    while (wb.SheetNames.includes(name)) { const s = "_" + n++; name = base.slice(0, 31 - s.length) + s; }
-    XLSX.utils.book_append_sheet(wb, ws, name);
-  });
-  XLSX.writeFile(wb, "REPORT_export_" + dateStamp() + ".xlsx");
-}
-
-function exportCsv() {
-  if (!state.exportData || state.exportData.length !== 1) throw new Error("CSV ส่งออกได้ครั้งละ 1 Sheet กรุณาเลือก Sheet แล้วโหลดข้อมูลใหม่");
-  const item = state.exportData[0];
-  downloadBlob(new Blob([rowsToCsv(item.header || [], item.rows || [])], { type: "text/csv;charset=utf-8;" }),
-    safeFilename(item.name) + "_" + dateStamp() + ".csv");
-}
-
-function exportJson() {
-  if (!state.exportData) throw new Error("กรุณาโหลดข้อมูลก่อนส่งออก");
-  downloadBlob(new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), sheets: state.exportData }, null, 2)], { type: "application/json;charset=utf-8;" }),
-    "REPORT_export_" + dateStamp() + ".json");
-}
-
-/* ===== 12. EVENTS ===== */
-const on = (id, ev, fn) => $(id).addEventListener(ev, fn);
-const guard = fn => () => { try { const r = fn(); if (r && r.catch) r.catch(showError); } catch (e) { showError(e); } };
-
-on("btnCheckHealth", "click", guard(checkHealth));
-on("navHealth", "click", guard(checkHealth));
-on("navRefresh", "click", guard(async () => { await loadSheets(); await checkHealth(); if (state.currentSheet) await loadTableData(); }));
-on("btnReloadSheets", "click", guard(loadSheets));
-on("btnRefreshSheetList", "click", guard(loadSheets));
-on("sheetFilter", "input", renderSheetsTable);
-on("dataSheet", "change", e => selectSheet(e.target.value).catch(showError));
-on("btnSearch", "click", guard(searchCurrent));
-on("searchInput", "keydown", e => { if (e.key === "Enter") searchCurrent().catch(showError); });
-on("pageSize", "change", () => { state.currentPage = 1; loadTableData().catch(showError); });
-on("btnPrev", "click", guard(async () => { if (state.currentPage > 1) { state.currentPage--; await loadTableData(); } }));
-on("btnNext", "click", guard(async () => { if (state.currentPage < state.totalPages) { state.currentPage++; await loadTableData(); } }));
-on("btnDistribution", "click", guard(loadDistribution));
-on("btnChooseFile", "click", () => $("fileInput").click());
-on("fileInput", "change", async e => {
-  try { const f = e.target.files && e.target.files[0]; if (f) await readUploadFile(f); }
-  catch (err) { setNotice("importResult", err.message || String(err), "error"); }
-});
-on("btnClearFile", "click", resetUpload);
-on("btnImport", "click", guard(importFile));
-on("dropZone", "dragover", e => { e.preventDefault(); $("dropZone").classList.add("drag"); });
-on("dropZone", "dragleave", () => $("dropZone").classList.remove("drag"));
-on("dropZone", "drop", async e => {
-  e.preventDefault(); $("dropZone").classList.remove("drag");
-  const f = e.dataTransfer.files[0]; if (!f) return;
-  try { await readUploadFile(f); } catch (err) { setNotice("importResult", err.message || String(err), "error"); }
-});
-on("btnLoadExport", "click", guard(loadExportData));
-on("exportSheet", "change", () => { state.exportData = null; $("exportStatus").textContent = "รอโหลด"; setExportButtons(false); });
-on("btnExportXlsx", "click", guard(exportXlsx));
-on("btnExportCsv", "click", guard(exportCsv));
-on("btnExportJson", "click", guard(exportJson));
-
-/* ===== 13. ERRORS ===== */
-function showError(err) {
-  const msg = err && err.message ? err.message : String(err || "เกิดข้อผิดพลาด");
-  setStatus("พบข้อผิดพลาด", "error");
-  console.error("[REPORT]", err);
-  if ($("view-upload").classList.contains("active")) {
-    if (!$("importResult").innerHTML) setNotice("importResult", msg, "error");
-  } else {
-    alert("เกิดข้อผิดพลาด\n\n" + msg);
-  }
-}
-
-/* ===== 14. INIT ===== */
-async function init() {
-  try {
-    setStatus("กำลังเชื่อมต่อ");
-    await ensureKey();
-    await checkHealth();
-    await loadSheets();
-  } catch (err) {
-    setStatus("เชื่อมต่อไม่สำเร็จ", "error");
-    $("kpiConnection").textContent = "Offline";
-    console.error(err);
-    const m = escapeHtml(err.message || String(err));
-    $("dashboardSheetList").innerHTML = '<div class="notice error">' + m + "</div>";
-    $("sheetsTableBody").innerHTML = '<tr><td colspan="5" class="table-empty">' + m + "</td></tr>";
-  }
-}
-init();
+<div class="footer">REPORT DATA INTELLIGENCE · GOOGLE APPS SCRIPT API</div>
+</main>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
