@@ -19,15 +19,9 @@
   <div>
     <div class="nav-label">WORKSPACE</div>
     <button class="nav-btn active" data-view="dashboard"><span class="nav-icon">▦</span> ภาพรวมข้อมูล</button>
-    <button class="nav-btn" data-view="database"><span class="nav-icon">▤</span> สำรวจข้อมูล</button>
-    <button class="nav-btn" data-view="sheets"><span class="nav-icon">▧</span> รายการ Sheets</button>
+    <button class="nav-btn" data-view="database"><span class="nav-icon">▤</span> ฐานข้อมูล</button>
     <button class="nav-btn" data-view="upload"><span class="nav-icon">⇧</span> นำเข้าข้อมูล</button>
     <button class="nav-btn" data-view="export"><span class="nav-icon">⇩</span> ส่งออกข้อมูล</button>
-  </div>
-  <div>
-    <div class="nav-label">SYSTEM</div>
-    <button class="nav-btn" id="navRefresh"><span class="nav-icon">↻</span> รีเฟรชข้อมูล</button>
-    <button class="nav-btn" id="navHealth"><span class="nav-icon">◉</span> ตรวจสอบ API</button>
   </div>
   <div class="sidebar-footer">REPORT DATA SYSTEM<br>Google Sheets · Apps Script<br><span id="sideVersion">Waiting for connection</span></div>
 </aside>
@@ -60,7 +54,7 @@
 
 <section class="view" id="view-database">
   <div class="card">
-    <div class="section-head"><div><div class="section-title">สำรวจข้อมูล</div><div class="section-sub">ค้นหา ดูตาราง และวิเคราะห์การกระจายของข้อมูล</div></div><span class="sheet-chip" id="dataSheetBadge">ยังไม่เลือก Sheet</span></div>
+    <div class="section-head"><div><div class="section-title">ฐานข้อมูล</div><div class="section-sub">เลือก Sheet ค้นหา ดูตาราง และวิเคราะห์การกระจายของข้อมูล</div></div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="sheet-chip" id="dataSheetBadge">ยังไม่เลือก Sheet</span><button class="btn btn-light" id="btnRefreshDb">↻ รีเฟรช</button></div></div>
     <div class="toolbar">
       <div class="field"><label for="dataSheet">Sheet</label><select class="select" id="dataSheet"><option value="">กำลังโหลด...</option></select></div>
       <div class="field grow"><label for="searchInput">ค้นหาข้อมูลทุกคอลัมน์</label><input class="input" id="searchInput" placeholder="พิมพ์คำค้นหา..."></div>
@@ -74,14 +68,6 @@
     <div class="section-head"><div><div class="section-title">การกระจายตัวของข้อมูล</div><div class="section-sub">นับความถี่ของแต่ละค่าในคอลัมน์ที่เลือก</div></div></div>
     <div class="toolbar"><div class="field grow"><label for="distributionColumn">คอลัมน์ที่ต้องการวิเคราะห์</label><select class="select" id="distributionColumn"><option value="">โหลดข้อมูลก่อน</option></select></div><button class="btn btn-primary" id="btnDistribution">วิเคราะห์</button></div>
     <div class="chart-box"><canvas id="distributionChart"></canvas></div><div class="muted" id="distributionInfo" style="margin-top:10px"></div>
-  </div>
-</section>
-
-<section class="view" id="view-sheets">
-  <div class="card">
-    <div class="section-head"><div><div class="section-title">รายการ Google Sheets</div><div class="section-sub">ระบบดึงรายชื่อ Sheet จาก Spreadsheet โดยอัตโนมัติ</div></div><button class="btn btn-primary" id="btnRefreshSheetList">↻ โหลดทุก Sheet</button></div>
-    <div class="field" style="margin-bottom:16px"><label for="sheetFilter">กรองชื่อ Sheet</label><input class="input" id="sheetFilter" placeholder="ค้นหาชื่อ Sheet..."></div>
-    <div class="table-wrap"><table><thead><tr><th>ลำดับ</th><th>ชื่อ Sheet</th><th>จำนวนแถวข้อมูล</th><th>จำนวนคอลัมน์</th><th>การทำงาน</th></tr></thead><tbody id="sheetsTableBody"><tr><td colspan="5" class="table-empty">กำลังโหลด...</td></tr></tbody></table></div>
   </div>
 </section>
 
