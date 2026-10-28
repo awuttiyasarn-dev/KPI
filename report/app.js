@@ -3,7 +3,7 @@
 
   const APP_BOOTSTRAP_KEY = "__REPORT_APP_BOOTSTRAP__";
 
-  // Guard ป้องกัน initialize ซ้ำ
+  // ป้องกัน init ซ้ำ
   if (window[APP_BOOTSTRAP_KEY]) {
     console.warn("[REPORT APP] App bootstrap already started.");
     return;
