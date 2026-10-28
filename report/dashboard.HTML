@@ -1,421 +1,5 @@
-<!--
-  REPORT KPI DASHBOARD
-  File: dashboard.html
-  ใช้งานร่วมกับ app_dashboard.js โดยโหลดไฟล์นี้เข้า #dashboardMount
-  หมายเหตุ: เนื่องจาก app_dashboard.js ใช้ innerHTML โหลดไฟล์นี้
-  จึงไม่ใส่ <script> สำหรับ app_dashboard.js ในไฟล์นี้เพื่อป้องกันการโหลดซ้ำ
--->
-
-<style>
-  .report-dashboard {
-    --rd-primary: #1a8f63;
-    --rd-primary-dark: #116746;
-    --rd-ink: #18352a;
-    --rd-muted: #718278;
-    --rd-border: #e1ebe5;
-    --rd-surface: #ffffff;
-    --rd-soft: #f5f9f6;
-    color: var(--rd-ink);
-    font-family: "IBM Plex Sans Thai", "Noto Sans Thai", system-ui, sans-serif;
-    width: 100%;
-    max-width: 1600px;
-    margin: 0 auto;
-    box-sizing: border-box;
-  }
-
-  .report-dashboard *,
-  .report-dashboard *::before,
-  .report-dashboard *::after { box-sizing: border-box; }
-
-  .report-dashboard button,
-  .report-dashboard input,
-  .report-dashboard select { font: inherit; }
-
-  .report-dashboard button { cursor: pointer; }
-  .report-dashboard button:disabled { cursor: not-allowed; opacity: .5; }
-
-  .rd-header {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 24px;
-    padding: clamp(22px, 4vw, 38px);
-    border: 1px solid #dcebe1;
-    border-radius: 24px;
-    background:
-      radial-gradient(circle at 92% 8%, rgba(26,143,99,.13), transparent 30%),
-      linear-gradient(135deg, #fbfefc 0%, #eff8f2 100%);
-    box-shadow: 0 12px 34px rgba(26, 76, 51, .06);
-  }
-
-  .rd-header-content { min-width: 0; }
-  .rd-eyebrow {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    color: var(--rd-primary-dark);
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: .13em;
-  }
-  .rd-eyebrow-dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    background: var(--rd-primary);
-    box-shadow: 0 0 0 5px rgba(26,143,99,.11);
-  }
-  .rd-title {
-    margin: 13px 0 7px;
-    color: #173c2b;
-    font-size: clamp(25px, 3vw, 38px);
-    line-height: 1.25;
-    font-weight: 800;
-    letter-spacing: -.025em;
-  }
-  .rd-subtitle {
-    margin: 0;
-    color: #65796d;
-    font-size: 14px;
-    line-height: 1.8;
-  }
-  .rd-header-actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 10px;
-    flex-shrink: 0;
-  }
-  .rd-btn {
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
-    min-height: 42px;
-    padding: 10px 15px;
-    border: 1px solid transparent;
-    border-radius: 12px;
-    font-size: 13px;
-    font-weight: 700;
-    text-decoration: none;
-    transition: transform .15s ease, background .15s ease, border-color .15s ease;
-  }
-  .rd-btn:hover:not(:disabled) { transform: translateY(-1px); }
-  .rd-btn-primary {
-    color: #fff;
-    background: var(--rd-primary);
-    box-shadow: 0 5px 12px rgba(26,143,99,.16);
-  }
-  .rd-btn-primary:hover:not(:disabled) { background: var(--rd-primary-dark); }
-  .rd-btn-outline, .rd-btn-light {
-    color: #28533f;
-    background: #fff;
-    border-color: #d8e7dd;
-  }
-  .rd-btn-outline:hover:not(:disabled), .rd-btn-light:hover:not(:disabled) { background: #f4faf6; }
-
-  .rd-loading-status {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin: 18px 0;
-    padding: 14px 17px;
-    border: 1px solid #fde68a;
-    border-radius: 14px;
-    background: #fffbeb;
-    color: #334155;
-  }
-  .rd-loading-spinner {
-    width: 20px;
-    height: 20px;
-    flex: 0 0 20px;
-    border: 2px solid #f3d98b;
-    border-top-color: #b7791f;
-    border-radius: 50%;
-    animation: rd-spin .8s linear infinite;
-  }
-  @keyframes rd-spin { to { transform: rotate(360deg); } }
-  .rd-loading-dot { width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; flex: 0 0 8px; }
-  .rd-loading-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .rd-loading-copy strong { font-size: 13px; }
-  .rd-loading-copy span { color: #647568; font-size: 12px; overflow-wrap: anywhere; }
-  .rd-loading-count { font-variant-numeric: tabular-nums; }
-
-  .rd-alert {
-    margin: 14px 0;
-    padding: 13px 16px;
-    border: 1px solid #f4d6a0;
-    border-radius: 12px;
-    font-size: 13px;
-    line-height: 1.7;
-    overflow-wrap: anywhere;
-  }
-  .rd-alert[hidden] { display: none !important; }
-
-  .rd-panel {
-    min-width: 0;
-    border: 1px solid var(--rd-border);
-    border-radius: 20px;
-    background: var(--rd-surface);
-    box-shadow: 0 8px 28px rgba(24, 53, 42, .045);
-  }
-  .rd-filter-panel { margin: 20px 0 24px; padding: clamp(18px, 3vw, 25px); }
-  .rd-panel-heading, .rd-section-heading {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-  }
-  .rd-section-title {
-    margin: 0;
-    color: #1c3b2d;
-    font-size: 18px;
-    line-height: 1.5;
-    font-weight: 800;
-  }
-  .rd-section-description {
-    margin: 5px 0 0;
-    color: var(--rd-muted);
-    font-size: 12px;
-    line-height: 1.7;
-  }
-  .rd-text-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border: 0;
-    padding: 5px 0;
-    color: var(--rd-primary-dark);
-    background: transparent;
-    font-size: 12px;
-    font-weight: 700;
-    text-decoration: none;
-    white-space: nowrap;
-  }
-  .rd-text-btn:hover { color: #0b4e32; text-decoration: underline; }
-
-  .rd-filter-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 15px;
-    margin-top: 22px;
-  }
-  .rd-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
-  .rd-field > span {
-    color: #40594b;
-    font-size: 12px;
-    font-weight: 700;
-  }
-  .rd-field select, .rd-field input {
-    width: 100%;
-    min-width: 0;
-    height: 42px;
-    padding: 9px 11px;
-    border: 1px solid #dce7df;
-    border-radius: 10px;
-    outline: none;
-    color: #233d30;
-    background: #fff;
-    font-size: 12px;
-  }
-  .rd-field select:focus, .rd-field input:focus {
-    border-color: #55aa80;
-    box-shadow: 0 0 0 3px rgba(26,143,99,.10);
-  }
-  .rd-search-field { grid-column: span 2; }
-  .rd-table-status {
-    min-height: 18px;
-    margin-top: 15px;
-    color: #718278;
-    font-size: 12px;
-  }
-  .rd-status-success { color: #16804f; }
-  .rd-status-error { color: #b42318; }
-
-  .rd-chart-section { margin: 24px 0; }
-  .rd-section-heading { margin: 0 0 15px; }
-  .rd-chart-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 18px;
-    align-items: stretch;
-  }
-  .rd-chart-card { min-width: 0; padding: 20px; }
-  .rd-chart-wide { grid-column: span 2; }
-  .rd-chart-heading {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 14px;
-  }
-  .rd-chart-heading h3 {
-    margin: 0;
-    color: #203d2f;
-    font-size: 15px;
-    line-height: 1.6;
-    font-weight: 800;
-  }
-  .rd-chart-heading p {
-    margin: 4px 0 0;
-    color: #829187;
-    font-size: 11px;
-    line-height: 1.7;
-  }
-  .rd-chart-note {
-    min-height: 18px;
-    margin: 12px 0 8px;
-    color: #829187;
-    font-size: 11px;
-    line-height: 1.6;
-  }
-  .rd-chart-container {
-    position: relative;
-    width: 100%;
-    min-height: 260px;
-    height: 330px;
-  }
-  .rd-chart-count .rd-chart-container { height: 340px; }
-
-  .rd-table-panel { margin: 24px 0; padding: clamp(16px, 2.5vw, 24px); }
-  .rd-table-heading { align-items: center; }
-  .rd-table-meta {
-    flex-shrink: 0;
-    padding: 7px 11px;
-    border: 1px solid #dcebe1;
-    border-radius: 999px;
-    color: #456453;
-    background: #f4faf6;
-    font-size: 12px;
-    font-weight: 700;
-  }
-  .rd-table-toolbar { display: flex; justify-content: flex-end; margin: 18px 0 12px; }
-  .rd-page-size-field { width: 160px; }
-  .rd-table-wrapper {
-    width: 100%;
-    overflow: auto;
-    border: 1px solid #e5ece7;
-    border-radius: 13px;
-    outline-offset: 3px;
-  }
-  .rd-table {
-    width: 100%;
-    min-width: 850px;
-    border-collapse: separate;
-    border-spacing: 0;
-    color: #31473a;
-    font-size: 12px;
-  }
-  .rd-table th {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    padding: 13px 12px;
-    border-bottom: 1px solid #dce9e0;
-    color: #355844;
-    background: #f1f8f3;
-    text-align: left;
-    white-space: nowrap;
-    font-size: 11px;
-    font-weight: 800;
-  }
-  .rd-table td {
-    padding: 13px 12px;
-    border-bottom: 1px solid #edf2ee;
-    vertical-align: top;
-    line-height: 1.65;
-  }
-  .rd-table tbody tr:nth-child(even) { background: #fbfdfb; }
-  .rd-table tbody tr:hover { background: #f1faf4; }
-  .rd-table tbody tr:last-child td { border-bottom: 0; }
-  .rd-table th:nth-child(1) { min-width: 105px; }
-  .rd-table th:nth-child(2) { min-width: 150px; }
-  .rd-table th:nth-child(3) { min-width: 260px; }
-  .rd-table th:nth-child(4), .rd-table th:nth-child(5), .rd-table th:nth-child(6) { min-width: 95px; }
-  .rd-table th:nth-child(7) { min-width: 120px; }
-  .rd-number { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .rd-kpi-name { color: #1f4531; font-weight: 800; }
-  .rd-kpi-description { display: block; margin-top: 4px; color: #78877e; font-size: 11px; white-space: normal; }
-  .rd-badge {
-    display: inline-block;
-    max-width: 100%;
-    padding: 4px 8px;
-    border: 1px solid transparent;
-    border-radius: 7px;
-    font-size: 11px;
-    font-weight: 700;
-    white-space: normal;
-  }
-  .rd-badge-neutral { border-color: #e3e8e5; color: #65756b; background: #f5f7f6; }
-  .rd-badge-blue { border-color: #d5e5f6; color: #315f91; background: #edf5fd; }
-  .rd-empty, .rd-table-placeholder { padding: 28px !important; color: #849188; text-align: center; }
-
-  .rd-pagination {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 15px;
-    padding-top: 17px;
-  }
-  .rd-pagination-info, .rd-page-info { color: #718278; font-size: 12px; }
-  .rd-pagination-actions { display: flex; align-items: center; gap: 10px; }
-  .rd-page-btn {
-    min-height: 35px;
-    padding: 7px 12px;
-    border: 1px solid #dce7df;
-    border-radius: 9px;
-    color: #315742;
-    background: #fff;
-    font-size: 12px;
-    font-weight: 700;
-  }
-  .rd-page-btn:hover:not(:disabled) { background: #f2faf5; border-color: #b6d9c4; }
-
-  .rd-footer {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 4px 4px 22px;
-    color: #819086;
-    font-size: 11px;
-  }
-
-  @media (max-width: 1050px) {
-    .rd-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .rd-search-field { grid-column: span 2; }
-    .rd-header { align-items: flex-start; flex-direction: column; }
-    .rd-header-actions { width: 100%; }
-  }
-
-  @media (max-width: 680px) {
-    .rd-header { padding: 21px 17px; border-radius: 17px; gap: 18px; }
-    .rd-title { font-size: 26px; }
-    .rd-header-actions { display: grid; grid-template-columns: 1fr 1fr; }
-    .rd-btn { padding: 9px 8px; font-size: 12px; }
-    .rd-filter-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-    .rd-search-field { grid-column: auto; }
-    .rd-filter-panel, .rd-chart-card, .rd-table-panel { padding: 16px; }
-    .rd-panel-heading, .rd-chart-heading { gap: 8px; }
-    .rd-section-title { font-size: 16px; }
-    .rd-chart-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
-    .rd-chart-wide { grid-column: auto; }
-    .rd-chart-heading { flex-direction: column; }
-    .rd-chart-container { min-height: 250px; }
-    .rd-table-heading { align-items: flex-start; }
-    .rd-pagination { align-items: flex-start; flex-direction: column; }
-    .rd-pagination-actions { width: 100%; justify-content: space-between; }
-    .rd-footer { flex-direction: column; gap: 5px; }
-    .rd-loading-status { align-items: flex-start; }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .report-dashboard *, .report-dashboard *::before, .report-dashboard *::after {
-      animation-duration: .01ms !important;
-      transition-duration: .01ms !important;
-    }
-  }
-</style>
-
 <div id="reportKpiDashboard" class="report-dashboard">
+  <!-- Dashboard Header -->
   <header class="rd-header">
     <div class="rd-header-content">
       <div class="rd-eyebrow">
@@ -425,16 +9,20 @@
       <h1 class="rd-title">รายงานผลการดำเนินงาน KPI</h1>
       <p class="rd-subtitle">ระบบติดตามและประเมินผลตัวชี้วัดจากฐานข้อมูล REPORT</p>
     </div>
+
     <div class="rd-header-actions">
       <button type="button" id="rdRefreshBtn" class="rd-btn rd-btn-primary">
-        <span aria-hidden="true">↻</span><span>รีเฟรชข้อมูล</span>
+        <span aria-hidden="true">↻</span>
+        <span>รีเฟรชข้อมูล</span>
       </button>
       <button type="button" id="rdExportBtn" class="rd-btn rd-btn-outline" disabled>
-        <span aria-hidden="true">⇩</span><span>ส่งออก Excel</span>
+        <span aria-hidden="true">⇩</span>
+        <span>ส่งออก Excel</span>
       </button>
     </div>
   </header>
 
+  <!-- Loading / Error Status -->
   <div id="rdLoadingStatus" class="rd-loading-status" role="status" aria-live="polite" aria-busy="true">
     <div class="rd-loading-spinner" aria-hidden="true"></div>
     <div class="rd-loading-dot" id="rdLoadingDot" aria-hidden="true"></div>
@@ -445,8 +33,10 @@
     </div>
   </div>
 
+  <!-- Dashboard Alert -->
   <div id="rdDashboardAlert" class="rd-alert" hidden aria-live="polite" role="alert"></div>
 
+  <!-- Filter Panel -->
   <section class="rd-panel rd-filter-panel" aria-labelledby="rdFilterHeading">
     <div class="rd-panel-heading">
       <div>
@@ -455,31 +45,52 @@
       </div>
       <button type="button" id="rdResetFilters" class="rd-text-btn">ล้างตัวกรอง</button>
     </div>
+
     <div class="rd-filter-grid">
       <label class="rd-field" for="rdFilterYear">
         <span>ปีงบประมาณ</span>
-        <select id="rdFilterYear"><option value="">ทุกปีงบประมาณ</option></select>
+        <select id="rdFilterYear">
+          <option value="">ทุกปีงบประมาณ</option>
+        </select>
       </label>
+
       <label class="rd-field" for="rdFilterGroup">
         <span>กลุ่มตัวชี้วัด</span>
-        <select id="rdFilterGroup"><option value="">ทุกกลุ่ม KPI</option></select>
+        <select id="rdFilterGroup">
+          <option value="">ทุกกลุ่ม KPI</option>
+        </select>
       </label>
+
       <label class="rd-field" for="rdFilterExcellence">
         <span>Excellence</span>
-        <select id="rdFilterExcellence"><option value="">ทุก Excellence</option></select>
+        <select id="rdFilterExcellence">
+          <option value="">ทุก Excellence</option>
+        </select>
       </label>
+
       <label class="rd-field" for="rdFilterSection">
         <span>หน่วยงาน / ส่วนงาน</span>
-        <select id="rdFilterSection"><option value="">ทุกหน่วยงาน</option></select>
+        <select id="rdFilterSection">
+          <option value="">ทุกหน่วยงาน</option>
+        </select>
       </label>
+
       <label class="rd-field rd-search-field" for="rdFilterSearch">
         <span>ค้นหาตัวชี้วัด</span>
-        <input type="search" id="rdFilterSearch" placeholder="ค้นหาชื่อ KPI, คำอธิบาย หรือหน่วยงาน..." autocomplete="off" />
+        <input
+          type="search"
+          id="rdFilterSearch"
+          placeholder="ค้นหาชื่อ KPI, คำอธิบาย หรือหน่วยงาน..."
+          autocomplete="off"
+        />
       </label>
     </div>
+
+    <!-- Table status -->
     <div id="rdTableStatus" class="rd-table-status" aria-live="polite"></div>
   </section>
 
+  <!-- Charts -->
   <section class="rd-chart-section" aria-labelledby="rdChartHeading">
     <div class="rd-section-heading">
       <div>
@@ -487,7 +98,9 @@
         <p class="rd-section-description">วิเคราะห์จำนวนตัวชี้วัดและผลการประเมินตามข้อมูลที่กรอง</p>
       </div>
     </div>
+
     <div class="rd-chart-grid">
+
       <article class="rd-panel rd-chart-card rd-chart-result rd-chart-wide">
         <div class="rd-chart-heading">
           <div>
@@ -497,7 +110,9 @@
           <a class="rd-text-btn rd-open-chart" href="chart.html" target="_blank" rel="noopener">เปิดกราฟแบบหน้าเดี่ยว ↗</a>
         </div>
         <div class="rd-chart-note" id="rdResultChartNote"></div>
-        <div class="rd-chart-container"><canvas id="rdResultTargetChart" role="img" aria-label="กราฟผลลัพธ์เทียบเป้าหมายตามกลุ่มตัวชี้วัด"></canvas></div>
+        <div class="rd-chart-container">
+          <canvas id="rdResultTargetChart" role="img" aria-label="กราฟผลลัพธ์เทียบเป้าหมายตามกลุ่มตัวชี้วัด"></canvas>
+        </div>
       </article>
 
       <article class="rd-panel rd-chart-card rd-chart-result rd-chart-wide">
@@ -508,7 +123,9 @@
           </div>
         </div>
         <div class="rd-chart-note" id="rdResultExcellenceNote"></div>
-        <div class="rd-chart-container"><canvas id="rdResultTargetExcellenceChart" role="img" aria-label="กราฟผลลัพธ์เทียบเป้าหมายตาม Excellence"></canvas></div>
+        <div class="rd-chart-container">
+          <canvas id="rdResultTargetExcellenceChart" role="img" aria-label="กราฟผลลัพธ์เทียบเป้าหมายตาม Excellence"></canvas>
+        </div>
       </article>
 
       <article class="rd-panel rd-chart-card rd-chart-result rd-chart-wide">
@@ -519,7 +136,9 @@
           </div>
         </div>
         <div class="rd-chart-note" id="rdResultSectionNote"></div>
-        <div class="rd-chart-container"><canvas id="rdResultTargetSectionChart" role="img" aria-label="กราฟผลลัพธ์เทียบเป้าหมายตามหน่วยงาน"></canvas></div>
+        <div class="rd-chart-container">
+          <canvas id="rdResultTargetSectionChart" role="img" aria-label="กราฟผลลัพธ์เทียบเป้าหมายตามหน่วยงาน"></canvas>
+        </div>
       </article>
 
       <article class="rd-panel rd-chart-card rd-chart-count rd-chart-wide">
@@ -530,18 +149,24 @@
           </div>
         </div>
         <div class="rd-chart-note" id="rdGroupChartNote"></div>
-        <div class="rd-chart-container"><canvas id="rdGroupChart" role="img" aria-label="กราฟจำนวนตัวชี้วัดตามกลุ่ม"></canvas></div>
+        <div class="rd-chart-container">
+          <canvas id="rdGroupChart" role="img" aria-label="กราฟจำนวนตัวชี้วัดตามกลุ่ม"></canvas>
+        </div>
       </article>
+
     </div>
   </section>
 
+  <!-- KPI Table -->
   <section class="rd-panel rd-table-panel" aria-labelledby="rdTableHeading">
     <div class="rd-panel-heading rd-table-heading">
       <div>
         <h2 id="rdTableHeading" class="rd-section-title">รายละเอียดตัวชี้วัด</h2>
         <p class="rd-section-description">รายการ KPI พร้อมเป้าหมาย ผลการดำเนินงาน และเกณฑ์การประเมิน</p>
       </div>
-      <div class="rd-table-meta"><span id="rdVisibleCount" aria-live="polite">0</span> รายการ</div>
+      <div class="rd-table-meta">
+        <span id="rdVisibleCount" aria-live="polite">0</span> รายการ
+      </div>
     </div>
 
     <div class="rd-table-toolbar">
@@ -570,7 +195,9 @@
           </tr>
         </thead>
         <tbody id="rdKpiTableBody">
-          <tr><td colspan="7" class="rd-table-placeholder">กำลังโหลดข้อมูล...</td></tr>
+          <tr>
+            <td colspan="7" class="rd-table-placeholder">กำลังโหลดข้อมูล...</td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -583,10 +210,13 @@
         <button type="button" id="rdNextPage" class="rd-page-btn" disabled>ถัดไป</button>
       </div>
     </nav>
+
   </section>
 
+  <!-- Footer -->
   <footer class="rd-footer">
     <span>REPORT KPI Dashboard</span>
     <span id="rdLastUpdated" aria-live="polite">รอข้อมูลล่าสุด</span>
   </footer>
+
 </div>
