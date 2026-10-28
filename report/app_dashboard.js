@@ -2,7 +2,7 @@
  * REPORT KPI DASHBOARD
  * File       : app_dashboard.js
  * Frontend   : GitHub Pages
- * HTML       : dashboard.html
+ * HTML       : dashboard.HTML
  * API        : Google Apps Script Web App
  * Sheet      : REPORT_02
  * ============================================================ */
@@ -214,7 +214,9 @@
     const countEl = $("rdLoadingCount");
 
     if (!panel || !title || !detail || !countEl) {
-      console.warn("[REPORT] Loading status elements are missing.");
+      console.warn(
+        "[REPORT] Loading status elements are missing."
+      );
       return;
     }
 
@@ -261,6 +263,7 @@
     }
   }
 
+  // ใช้ฟังก์ชันนี้หลังโหลดเสร็จ เพื่อให้ข้อความถูกอัปเดตตรง ๆ
   function setFinalLoadingStatus(total, message = "") {
     setLoadingStatus(
       "success",
@@ -617,6 +620,7 @@
         script.async = true;
         script.dataset.reportChartjs = "true";
       } else {
+        // สคริปต์เดิมอาจโหลดเสร็จหรือผิดพลาดไปแล้ว
         script.remove();
         script = document.createElement("script");
         script.src = CONFIG.CHART_JS_URL;
@@ -767,6 +771,7 @@
 
     C.__rdStyled = true;
 
+    // ตั้งค่า style กลาง — ถ้าเวอร์ชัน Chart.js ไม่รองรับบางค่า ให้ข้ามไป ไม่ให้กราฟพัง
     try {
       C.defaults.font.family = CHART_FONT;
       C.defaults.font.size = 12;
@@ -789,6 +794,7 @@
     }
   }
 
+  // แสดงตัวเลขที่ปลายแท่งกราฟแนวนอน
   const valueLabelsPlugin = {
     id: "rdValueLabels",
 
@@ -818,6 +824,7 @@
     }
   };
 
+  // แสดงจำนวนรวมตรงกลางกราฟโดนัท
   const doughnutCenterPlugin = {
     id: "rdDoughnutCenter",
 
@@ -899,6 +906,7 @@
     return result;
   }
 
+  // หน้า chart.html ใช้ <body class="rd-chart-only"> เพื่อแสดงเฉพาะกราฟ
   const CHART_ONLY = document.body.classList.contains("rd-chart-only");
 
   const RESULT_GROUPS = {
@@ -927,15 +935,7 @@
       const target = numberValue(row.target);
 
       if (!map.has(name)) {
-        map.set(name, {
-          name,
-          count: 0,
-          result: 0,
-          target: 0,
-          pairResult: 0,
-          pairTarget: 0,
-          withTarget: 0
-        });
+        map.set(name, { name, count: 0, result: 0, target: 0, pairResult: 0, pairTarget: 0, withTarget: 0 });
       }
 
       const item = map.get(name);
@@ -989,6 +989,7 @@
     const targets = groups.map((g) => (g.withTarget ? g.target : null));
     const hasAnyTarget = targets.some((value) => value !== null);
 
+    // ปรับความสูงตามจำนวนกลุ่ม เพื่อไม่ให้ป้ายชื่อทับกัน
     const container = canvas.parentElement;
     if (container) {
       const perRow = hasAnyTarget ? 46 : 30;
@@ -1241,8 +1242,10 @@
 
     if (number === null) return text;
 
-    // สำหรับค่าเปอร์เซ็นต์ให้แสดง % เสมอ
-    return `${formatNumber(number)}%`;
+    // แสดง % เฉพาะเมื่อค่าต้นฉบับมี % หรือ field บ่งบอกว่าเป็นเปอร์เซ็นต์
+    return text.includes("%")
+      ? `${formatNumber(number)}%`
+      : formatNumber(number);
   }
 
   function renderPagination(from, to, total, page, totalPages) {
@@ -1315,7 +1318,7 @@
           </td>
 
           <td class="rd-number">${escapeHTML(targetText)}</td>
-          <td class="rd-number">${escapeHTML(formatRate(row.percent ?? row.rate))}</td>
+          <td class="rd-number">${escapeHTML(formatRate(row.percent))}</td>
           <td>${escapeHTML(row.summary || "—")}</td>
         </tr>
       `;
@@ -1390,6 +1393,7 @@
 
     $("rdExportBtn")?.addEventListener("click", exportDashboardXlsx);
 
+
     $("rdPageSize")?.addEventListener("change", (event) => {
       const size = Number(event.target.value);
       STATE.pageSize = Number.isFinite(size) && size > 0 ? size : 25;
@@ -1453,6 +1457,7 @@
     setStatus("กำลังโหลดข้อมูลจาก REPORT_02...");
 
     try {
+      // ไม่ให้ปัญหา Chart.js ขัดขวางการโหลดข้อมูล
       const chartPromise = ensureChartJS().catch((error) => {
         console.error("[REPORT CHART] Loader error:", error);
         return false;
@@ -1584,7 +1589,7 @@
   }
 
   /* ==========================================================
-     20. LOAD dashboard.html
+     20. LOAD dashboard.HTML
   ========================================================== */
 
   async function loadDashboardHTML() {
@@ -1609,7 +1614,7 @@
       mount.innerHTML = `
         <div class="card" role="alert">
           <h3>กรุณาเปิดเว็บไซต์ผ่านเว็บเซิร์ฟเวอร์</h3>
-          <p>ไม่สามารถโหลด dashboard.html ผ่าน file:// ได้</p>
+          <p>ไม่สามารถโหลด dashboard.HTML ผ่าน file:// ได้</p>
           <p>กรุณาเปิดผ่าน GitHub Pages หรือใช้ python -m http.server 8000</p>
         </div>
       `;
@@ -1625,7 +1630,7 @@
     `;
 
     try {
-      const url = new URL("./dashboard.html", document.baseURI);
+      const url = new URL("dashboard.HTML", document.baseURI);
       url.searchParams.set("_", String(Date.now()));
 
       const response = await fetch(url.href, {
@@ -1635,18 +1640,18 @@
 
       if (!response.ok) {
         throw new Error(
-          `โหลด dashboard.html ไม่สำเร็จ (HTTP ${response.status})`
+          `โหลด dashboard.HTML ไม่สำเร็จ (HTTP ${response.status})`
         );
       }
 
       const html = await response.text();
 
       if (!html.trim()) {
-        throw new Error("ไฟล์ dashboard.html ไม่มีเนื้อหา");
+        throw new Error("ไฟล์ dashboard.HTML ไม่มีเนื้อหา");
       }
 
       if (!/id=["']reportKpiDashboard["']/.test(html)) {
-        throw new Error('ไม่พบ id="reportKpiDashboard" ใน dashboard.html');
+        throw new Error('ไม่พบ id="reportKpiDashboard" ใน dashboard.HTML');
       }
 
       mount.innerHTML = html;
@@ -1663,7 +1668,7 @@
         <div class="card" role="alert">
           <h3>ไม่สามารถโหลด Dashboard ได้</h3>
           <p>${escapeHTML(error.message || "เกิดข้อผิดพลาด")}</p>
-          <p>กรุณาตรวจสอบชื่อไฟล์ dashboard.html และสถานะ GitHub Pages</p>
+          <p>กรุณาตรวจสอบชื่อไฟล์ dashboard.HTML และสถานะ GitHub Pages</p>
           <button type="button" class="rd-btn rd-btn-light" id="rdRetryLoadHTML">
             ลองโหลดอีกครั้ง
           </button>
