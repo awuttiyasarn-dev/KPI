@@ -39,15 +39,16 @@
     CHART_JS_URL:
       "https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js",
 
+    // สีให้ตรงกับธีมใน dashboard.css
     COLORS: {
-      primary: "#1a8f63",
-      secondary: "#8db8ea",
-      teal: "#0f9e91",
-      amber: "#f59e0b",
-      purple: "#8b5cf6",
+      primary: "#1f6f47",    // ผลลัพธ์
+      secondary: "#6fa3e0",  // เป้าหมาย
+      teal: "#0f8a7e",
+      amber: "#d9922b",
+      purple: "#7a58c9",
       gray: "#94a3b8",
-      red: "#dc2626",
-      green: "#16a34a"
+      red: "#c94444",
+      green: "#1f6f47"
     }
   };
 
@@ -204,11 +205,17 @@
 
   /* ==========================================================
      5. LOADING STATUS
+     สี/พื้นหลังควบคุมด้วย CSS ผ่าน data-load-state
   ========================================================== */
+
+  const LOADING_TITLES = {
+    loading: "กำลังโหลดข้อมูล",
+    success: "โหลดข้อมูลสำเร็จ",
+    error: "โหลดข้อมูลไม่สำเร็จ"
+  };
 
   function setLoadingStatus(state, message = "", count = "") {
     const panel = $("rdLoadingStatus");
-    const dot = $("rdLoadingDot");
     const title = $("rdLoadingTitle");
     const detail = $("rdLoadingMessage");
     const countEl = $("rdLoadingCount");
@@ -220,47 +227,18 @@
       return;
     }
 
-    const styles = {
-      loading: {
-        title: "กำลังโหลดข้อมูล",
-        color: "#f59e0b",
-        background: "#fffbeb",
-        border: "#fde68a"
-      },
-      success: {
-        title: "โหลดข้อมูลสำเร็จ",
-        color: "#16a34a",
-        background: "#f0fdf4",
-        border: "#bbf7d0"
-      },
-      error: {
-        title: "โหลดข้อมูลไม่สำเร็จ",
-        color: "#dc2626",
-        background: "#fef2f2",
-        border: "#fecaca"
-      }
-    };
+    const titleText = LOADING_TITLES[state] || LOADING_TITLES.loading;
 
-    const style = styles[state] || styles.loading;
-
-    title.textContent = style.title;
+    title.textContent = titleText;
     detail.textContent = message;
     countEl.textContent = count;
 
     panel.dataset.loadState = state;
     panel.setAttribute("aria-live", "polite");
     panel.setAttribute("role", "status");
-    panel.setAttribute("aria-label", style.title);
+    panel.setAttribute("aria-label", titleText);
     panel.setAttribute("aria-busy", state === "loading" ? "true" : "false");
-
-    panel.style.display = "flex";
-    panel.style.background = style.background;
-    panel.style.borderColor = style.border;
-    panel.style.color = "#334155";
-
-    if (dot) {
-      dot.style.background = style.color;
-    }
+    panel.hidden = false;
   }
 
   // ใช้ฟังก์ชันนี้หลังโหลดเสร็จ เพื่อให้ข้อความถูกอัปเดตตรง ๆ
@@ -300,15 +278,7 @@
 
     element.textContent = message || "";
     element.hidden = !message;
-
-    element.style.borderColor =
-      type === "error" ? "#fecaca" : "#f4d6a0";
-
-    element.style.color =
-      type === "error" ? "#991b1b" : "#92400e";
-
-    element.style.background =
-      type === "error" ? "#fef2f2" : "#fffbeb";
+    element.dataset.type = type === "error" ? "error" : "warning";
   }
 
   function clearAlert() {
@@ -756,14 +726,10 @@
   }
 
   /* ==========================================================
-     12. SUMMARY CARDS
-  ========================================================== */
-
-  /* ==========================================================
      13. CHARTS
   ========================================================== */
 
-  const CHART_FONT = '"IBM Plex Sans Thai", "Inter", system-ui, sans-serif';
+  const CHART_FONT = '"IBM Plex Sans Thai", "IBM Plex Sans", system-ui, sans-serif';
 
   function ensureChartDefaults() {
     const C = window.Chart;
@@ -775,15 +741,15 @@
     try {
       C.defaults.font.family = CHART_FONT;
       C.defaults.font.size = 12;
-      C.defaults.color = "#52675c";
+      C.defaults.color = "#4a6054";
 
       Object.assign(C.defaults.plugins.tooltip, {
-        backgroundColor: "rgba(20, 53, 42, 0.95)",
+        backgroundColor: "rgba(15, 74, 46, 0.96)",
         titleColor: "#ffffff",
         bodyColor: "#e4f2ea",
         footerColor: "#bfe3cf",
         padding: 12,
-        cornerRadius: 10,
+        cornerRadius: 8,
         boxPadding: 5,
         caretSize: 6
       });
@@ -810,7 +776,7 @@
         const meta = chart.getDatasetMeta(datasetIndex);
         if (meta.hidden) return;
 
-        ctx.fillStyle = datasetIndex === 0 ? "#146c4a" : "#4f7fb5";
+        ctx.fillStyle = datasetIndex === 0 ? "#145c38" : "#3b72c4";
 
         meta.data.forEach((bar, index) => {
           const value = dataset.data[index];
@@ -842,11 +808,11 @@
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
-      ctx.fillStyle = "#172b22";
+      ctx.fillStyle = "#14281e";
       ctx.font = `700 28px ${CHART_FONT}`;
       ctx.fillText(formatNumber(total, 0), x, y - 8);
 
-      ctx.fillStyle = "#829187";
+      ctx.fillStyle = "#7b8c82";
       ctx.font = `500 12px ${CHART_FONT}`;
       ctx.fillText("ตัวชี้วัด", x, y + 16);
 
@@ -864,17 +830,24 @@
     STATE.charts[key] = null;
   }
 
+  // ตั้งข้อความแจ้งในทุกกราฟ (ใช้ตอนโหลด Chart.js ไม่สำเร็จ)
+  function setAllChartNotes(message) {
+    Object.values(RESULT_GROUPS).forEach((mode) => {
+      setText(mode.noteId, message);
+    });
+    setText("rdGroupChartNote", message);
+  }
+
   function renderCharts(rows) {
     ensureChartDefaults();
 
     if (!window.Chart) {
       Object.values(RESULT_GROUPS).forEach((mode) => {
         destroyChart(mode.chartKey);
-        setText(mode.noteId, "ไม่พบ Chart.js จึงไม่สามารถแสดงกราฟได้");
       });
       destroyChart("group");
 
-      setText("rdGroupChartNote", "ไม่พบ Chart.js จึงไม่สามารถแสดงกราฟได้");
+      setAllChartNotes("ไม่พบ Chart.js จึงไม่สามารถแสดงกราฟได้");
 
       return false;
     }
@@ -1007,22 +980,22 @@
             label: "ผลลัพธ์รวม",
             data: results,
             backgroundColor: CONFIG.COLORS.primary,
-            borderRadius: 6,
+            borderRadius: 4,
             borderSkipped: false,
             barPercentage: 0.85,
             categoryPercentage: 0.78,
-            maxBarThickness: 20
+            maxBarThickness: 18
           },
 
           ...(hasAnyTarget ? [{
             label: "เป้าหมายรวม",
             data: targets,
             backgroundColor: CONFIG.COLORS.secondary,
-            borderRadius: 6,
+            borderRadius: 4,
             borderSkipped: false,
             barPercentage: 0.85,
             categoryPercentage: 0.78,
-            maxBarThickness: 20
+            maxBarThickness: 18
           }] : [])
         ]
       },
@@ -1158,9 +1131,9 @@
           data: groups.map(([, count]) => count),
 
           backgroundColor: [
-            "#1a8f63", "#4f8fd6", "#14a3a0", "#e3a634",
-            "#8b6bd6", "#d9628b", "#3aa0bd", "#7bb342",
-            "#e07b39", "#6b7a8f", "#2fbf9a", "#a779d6"
+            "#1f6f47", "#3b72c4", "#0f8a7e", "#d9922b",
+            "#7a58c9", "#c95a85", "#4aa3c2", "#7fb34a",
+            "#d9763a", "#6b7a8f", "#2fb08f", "#a779d6"
           ],
 
           borderColor: "#ffffff",
@@ -1393,7 +1366,6 @@
 
     $("rdExportBtn")?.addEventListener("click", exportDashboardXlsx);
 
-
     $("rdPageSize")?.addEventListener("change", (event) => {
       const size = Number(event.target.value);
       STATE.pageSize = Number.isFinite(size) && size > 0 ? size : 25;
@@ -1486,15 +1458,7 @@
         : false;
 
       if (!chartAvailable) {
-        setText(
-          "rdResultChartNote",
-          "โหลดข้อมูลแล้ว แต่โหลด Chart.js ไม่สำเร็จ"
-        );
-
-        setText(
-          "rdGroupChartNote",
-          "โหลดข้อมูลแล้ว แต่โหลด Chart.js ไม่สำเร็จ"
-        );
+        setAllChartNotes("โหลดข้อมูลแล้ว แต่โหลด Chart.js ไม่สำเร็จ");
       }
 
       setText("rdLastUpdated", formatDate(STATE.lastUpdated));
