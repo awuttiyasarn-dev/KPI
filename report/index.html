@@ -1,116 +1,709 @@
+
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#102c46">
-<title>REPORT | Data Intelligence Dashboard</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23102c46'/%3E%3Ctext x='50' y='68' font-size='58' font-weight='800' text-anchor='middle' fill='white' font-family='Arial'%3ER%3C/text%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <meta name="theme-color" content="#eaf7ed">
+  <meta name="description" content="REPORT Data Intelligence Dashboard">
+  <meta name="color-scheme" content="light">
+
+  <title>REPORT | Data Intelligence Dashboard</title>
+
+  <link
+    rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%232c754c'/%3E%3Ctext x='50' y='68' font-size='58' font-weight='800' text-anchor='middle' fill='white' font-family='Arial'%3ER%3C/text%3E%3C/svg%3E"
+  >
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  >
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="dashboard.css">
+
+  <!-- Libraries -->
+  <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <!-- Application scripts -->
+  <script defer src="app.js"></script>
+  <script defer src="app_dashboard.js"></script>
 </head>
+
 <body>
-<div class="app">
-<aside class="sidebar" id="sidebar">
-  <div class="brand"><div class="brand-mark">R</div><div><div class="brand-title">REPORT</div><div class="brand-sub">Data Intelligence Platform</div></div></div>
-  <div>
-    <div class="nav-label">WORKSPACE</div>
-    <button class="nav-btn active" data-view="dashboard"><span class="nav-icon">▦</span> ภาพรวมข้อมูล</button>
-    <button class="nav-btn" data-view="database"><span class="nav-icon">▤</span> ฐานข้อมูล</button>
-    <button class="nav-btn" data-view="upload"><span class="nav-icon">⇧</span> นำเข้าข้อมูล</button>
-    <button class="nav-btn" data-view="export"><span class="nav-icon">⇩</span> ส่งออกข้อมูล</button>
-  </div>
-  <div class="sidebar-footer">REPORT DATA SYSTEM<br>Google Sheets · Apps Script<br><span id="sideVersion">Waiting for connection</span></div>
-</aside>
+  <div class="app">
 
-<main class="main">
-<header class="topbar">
-  <div style="display:flex;align-items:flex-start;min-width:0">
-    <button class="mobile-menu" id="mobileMenu" aria-label="เปิดเมนู">☰</button>
-    <div><div class="eyebrow">DATA MANAGEMENT SYSTEM</div><h1 id="pageTitle">ภาพรวมข้อมูล</h1><div class="subtitle" id="pageSubtitle">ภาพรวม Google Spreadsheet และข้อมูลทั้งหมด</div></div>
-  </div>
-  <div class="status-pill"><span class="dot" id="statusDot"></span><span id="statusText">กำลังเชื่อมต่อ</span></div>
-</header>
+    <!-- =====================================================
+         SIDEBAR
+    ====================================================== -->
+    <aside class="sidebar" id="sidebar">
 
-<section class="view active" id="view-dashboard">
-  <div class="grid">
-    <div class="card"><div class="kpi-top"><div class="kpi-label">จำนวน Sheets</div><div class="kpi-icon">▤</div></div><div class="kpi-value" id="kpiSheets">—</div><div class="kpi-note">ชีตทั้งหมดใน Spreadsheet</div></div>
-    <div class="card"><div class="kpi-top"><div class="kpi-label">จำนวนแถวข้อมูล</div><div class="kpi-icon" style="background:#e8f8f2;color:#0d9b78">▥</div></div><div class="kpi-value" id="kpiRows">—</div><div class="kpi-note">ผลรวมจำนวนแถวข้อมูลทุกชีต</div></div>
-    <div class="card"><div class="kpi-top"><div class="kpi-label">จำนวนคอลัมน์</div><div class="kpi-icon" style="background:#f2edff;color:#7955c5">▦</div></div><div class="kpi-value" id="kpiColumns">—</div><div class="kpi-note">รวมจำนวนคอลัมน์ทุกชีต</div></div>
-    <div class="card"><div class="kpi-top"><div class="kpi-label">การเชื่อมต่อ</div><div class="kpi-icon" style="background:#fff4e7;color:#c47b1e">⌁</div></div><div class="kpi-value" id="kpiConnection" style="font-size:24px">—</div><div class="kpi-note" id="lastUpdated">รอการตรวจสอบ</div></div>
-  </div>
-  <div class="two-col">
-    <div class="card"><div class="section-head"><div><div class="section-title">จำนวนแถวแยกตาม Sheet</div><div class="section-sub">เปรียบเทียบขนาดข้อมูลในแต่ละชีต</div></div></div><div class="chart-box"><canvas id="sheetChart"></canvas></div></div>
-    <div class="card"><div class="section-head"><div><div class="section-title">สถานะระบบ</div><div class="section-sub">การเชื่อมต่อ Google Apps Script</div></div></div>
-      <div style="line-height:2.1"><div>API: <strong id="healthService">ยังไม่ตรวจสอบ</strong></div><div>Spreadsheet: <strong id="healthSpreadsheet">—</strong></div><div>จำนวน Sheets: <strong id="healthSheets">—</strong></div><div>ตรวจสอบล่าสุด: <strong id="healthTime">—</strong></div></div>
-      <button class="btn btn-primary" style="margin-top:15px" id="btnCheckHealth">ตรวจสอบระบบ</button></div>
-  </div>
-  <div class="card"><div class="section-head"><div><div class="section-title">Sheets ทั้งหมด</div><div class="section-sub">เลือกชีตเพื่อเปิดดูข้อมูลได้ทันที</div></div><button class="btn btn-light" id="btnReloadSheets">↻ รีเฟรช</button></div>
-    <div class="sheet-list" id="dashboardSheetList"><div class="table-empty">กำลังโหลดรายชื่อ Sheet...</div></div></div>
-</section>
+      <div class="brand">
+        <div class="brand-mark">R</div>
 
-<section class="view" id="view-database">
-  <div class="card">
-    <div class="section-head"><div><div class="section-title">ฐานข้อมูล</div><div class="section-sub">เลือก Sheet ค้นหา ดูตาราง และวิเคราะห์การกระจายของข้อมูล</div></div><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><span class="sheet-chip" id="dataSheetBadge">ยังไม่เลือก Sheet</span><button class="btn btn-light" id="btnRefreshDb">↻ รีเฟรช</button></div></div>
-    <div class="toolbar">
-      <div class="field"><label for="dataSheet">Sheet</label><select class="select" id="dataSheet"><option value="">กำลังโหลด...</option></select></div>
-      <div class="field grow"><label for="searchInput">ค้นหาข้อมูลทุกคอลัมน์</label><input class="input" id="searchInput" placeholder="พิมพ์คำค้นหา..."></div>
-      <div class="field"><label for="pageSize">จำนวนแถวต่อหน้า</label><select class="select" id="pageSize"><option value="10">10 แถว</option><option value="25" selected>25 แถว</option><option value="50">50 แถว</option><option value="100">100 แถว</option></select></div>
-      <button class="btn btn-primary" id="btnSearch">ค้นหา</button>
-    </div>
-    <div class="table-wrap"><table id="dataTable"><thead><tr><th>ข้อมูล</th></tr></thead><tbody><tr><td class="table-empty">เลือก Sheet เพื่อเริ่มต้น</td></tr></tbody></table></div>
-    <div class="table-footer"><div class="muted" id="tableInfo">ยังไม่มีข้อมูล</div><div class="pagination"><button class="btn btn-light" id="btnPrev">← ก่อนหน้า</button><span class="page-label" id="pageInfo">หน้า 1 / 1</span><button class="btn btn-light" id="btnNext">ถัดไป →</button></div></div>
-  </div>
-  <div class="card" style="margin-top:18px">
-    <div class="section-head"><div><div class="section-title">การกระจายตัวของข้อมูล</div><div class="section-sub">นับความถี่ของแต่ละค่าในคอลัมน์ที่เลือก</div></div></div>
-    <div class="toolbar"><div class="field grow"><label for="distributionColumn">คอลัมน์ที่ต้องการวิเคราะห์</label><select class="select" id="distributionColumn"><option value="">โหลดข้อมูลก่อน</option></select></div><button class="btn btn-primary" id="btnDistribution">วิเคราะห์</button></div>
-    <div class="chart-box"><canvas id="distributionChart"></canvas></div><div class="muted" id="distributionInfo" style="margin-top:10px"></div>
-  </div>
-</section>
+        <div>
+          <div class="brand-title">REPORT</div>
+          <div class="brand-sub">Data Intelligence Platform</div>
+        </div>
+      </div>
 
-<section class="view" id="view-upload">
-  <div class="card">
-    <div class="section-head"><div><div class="section-title">นำเข้าไฟล์ข้อมูล</div><div class="section-sub">รองรับ Excel และ CSV พร้อมส่งข้อมูลไปยัง Google Sheets</div></div></div>
-    <div class="upload-zone" id="dropZone"><div class="upload-icon">⇧</div><div class="upload-title">ลากไฟล์มาวางที่นี่</div><div class="upload-sub">หรือเลือกไฟล์จากคอมพิวเตอร์ (.xlsx, .xls, .csv)</div>
-      <div style="margin-top:18px"><button class="btn btn-primary" id="btnChooseFile">เลือกไฟล์</button><input class="hidden" type="file" id="fileInput" accept=".xlsx,.xls,.csv"></div>
-      <div class="muted" id="fileName" style="margin-top:12px">ยังไม่ได้เลือกไฟล์</div></div>
-    <div class="grid" style="grid-template-columns:repeat(2,minmax(0,1fr));margin-top:18px">
-      <div class="field"><label for="importSheet">Sheet ปลายทาง</label><select class="select" id="importSheet"><option value="">เลือก Sheet ปลายทาง</option></select></div>
-      <div class="field"><label for="newSheetName">หรือสร้าง Sheet ใหม่</label><input class="input" id="newSheetName" placeholder="เว้นว่างหากใช้ Sheet เดิม"></div>
-      <div class="field" style="grid-column:1/-1"><label for="writeToken">Write Token</label><input class="input" id="writeToken" type="password" autocomplete="new-password" placeholder="ใส่ REPORT_WRITE_TOKEN ที่ตั้งไว้ใน Script Properties"></div>
-    </div>
-    <label class="check-row"><input type="checkbox" id="replaceData"><span>แทนที่ข้อมูลเดิมทั้งหมดใน Sheet ปลายทาง</span></label>
-    <div class="notice warn"><strong>ข้อควรระวัง:</strong> การแทนที่ข้อมูลจะล้างข้อมูลเดิมในชีตปลายทางก่อนเขียนข้อมูลใหม่ ตรวจสอบชื่อ Sheet และไฟล์ก่อนนำเข้าเสมอ</div>
-    <div style="margin-top:17px"><div class="section-title" style="font-size:13px">ตัวอย่างข้อมูลที่จะนำเข้า</div><div class="muted" id="previewInfo" style="margin:5px 0 10px">เลือกไฟล์เพื่อดูตัวอย่าง</div>
-      <div class="table-wrap"><table id="previewTable"><tbody><tr><td class="table-empty">ยังไม่มีข้อมูลตัวอย่าง</td></tr></tbody></table></div></div>
-    <div class="progress-track"><div class="progress-bar" id="importProgress"></div></div>
-    <div class="muted" id="progressText" style="margin-top:7px">รอการนำเข้า</div>
-    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:16px"><button class="btn btn-green" id="btnImport" disabled>⇧ เริ่มนำเข้าข้อมูล</button><button class="btn btn-light" id="btnClearFile">ล้างไฟล์ที่เลือก</button></div>
-    <div id="importResult"></div>
-  </div>
-</section>
+      <div class="sidebar-navigation">
 
-<section class="view" id="view-export">
-  <div class="card">
-    <div class="section-head"><div><div class="section-title">ส่งออกข้อมูล</div><div class="section-sub">ดาวน์โหลดข้อมูลจาก Google Sheets ลงในเครื่อง</div></div></div>
-    <div class="toolbar"><div class="field grow"><label for="exportSheet">เลือก Sheet</label><select class="select" id="exportSheet"><option value="">ทุก Sheet</option></select></div><button class="btn btn-primary" id="btnLoadExport">โหลดข้อมูล</button></div>
-    <div class="grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
-      <div class="card" style="box-shadow:none"><div class="kpi-label">จำนวน Sheets</div><div class="kpi-value" id="exportSheetCount">—</div></div>
-      <div class="card" style="box-shadow:none"><div class="kpi-label">จำนวนแถวข้อมูล</div><div class="kpi-value" id="exportRowCount">—</div></div>
-      <div class="card" style="box-shadow:none"><div class="kpi-label">สถานะ</div><div class="kpi-value" id="exportStatus" style="font-size:20px">รอโหลด</div></div>
-    </div>
-    <div class="toolbar"><button class="btn btn-green" id="btnExportXlsx" disabled>Excel (.xlsx)</button><button class="btn btn-primary" id="btnExportCsv" disabled>CSV (.csv)</button><button class="btn btn-dark" id="btnExportJson" disabled>JSON (.json)</button></div>
-    <div class="notice info">ส่งออกได้สูงสุด 10,000 แถวข้อมูลต่อ Sheet ตามค่าตั้งต้นใน Code.gs · CSV ส่งออกได้ครั้งละ 1 Sheet (หลาย Sheet ให้ใช้ Excel หรือ JSON)</div>
-    <div id="exportWarnings"></div>
-  </div>
-</section>
+        <div class="nav-label">WORKSPACE</div>
 
-<div class="footer">REPORT DATA INTELLIGENCE · GOOGLE APPS SCRIPT API</div>
-</main>
-</div>
-<script src="app.js"></script>
+        <button
+          class="nav-btn active"
+          data-view="dashboard"
+          type="button"
+          aria-current="page"
+        >
+          <span class="nav-icon" aria-hidden="true">▦</span>
+          <span>Dashboard</span>
+        </button>
+
+        <button
+          class="nav-btn"
+          data-view="database"
+          type="button"
+        >
+          <span class="nav-icon" aria-hidden="true">▤</span>
+          <span>ฐานข้อมูล</span>
+        </button>
+
+      </div>
+
+      <div class="sidebar-footer">
+        REPORT DATA SYSTEM<br>
+        Google Sheets · Apps Script<br>
+        <span id="sideVersion">กำลังเชื่อมต่อ</span>
+      </div>
+
+    </aside>
+
+
+    <!-- =====================================================
+         MAIN CONTENT
+    ====================================================== -->
+    <main class="main">
+
+      <!-- TOPBAR -->
+      <header class="topbar">
+
+        <div class="topbar-left">
+
+          <button
+            class="mobile-menu"
+            id="mobileMenu"
+            type="button"
+            aria-label="เปิดเมนู"
+            aria-controls="sidebar"
+            aria-expanded="false"
+          >
+            ☰
+          </button>
+
+          <div class="topbar-heading">
+            <div class="eyebrow">DATA MANAGEMENT SYSTEM</div>
+
+            <h1 id="pageTitle">Dashboard</h1>
+
+            <div class="subtitle" id="pageSubtitle">
+              REPORT Data Intelligence Dashboard
+            </div>
+          </div>
+
+        </div>
+
+        <div
+          class="status-pill"
+          id="appStatus"
+          role="status"
+          aria-live="polite"
+        >
+          <span class="dot" id="statusDot"></span>
+          <span id="statusText">กำลังเชื่อมต่อ</span>
+        </div>
+
+      </header>
+
+
+      <!-- =====================================================
+           VIEW: DASHBOARD
+      ====================================================== -->
+      <section
+        class="view active"
+        id="view-dashboard"
+        data-view-panel="dashboard"
+      >
+
+        <!--
+          dashboard.HTML จะถูกโหลดเข้า mount นี้
+          ไม่ควรนำเนื้อหา Dashboard มาวางซ้ำใน index.html
+        -->
+        <div id="dashboardMount">
+
+          <article class="card dashboard-initial-loading" role="status" aria-live="polite">
+
+            <div class="dashboard-loading-indicator" aria-hidden="true"></div>
+
+            <div class="dashboard-loading-title">
+              กำลังเตรียม Dashboard
+            </div>
+
+            <div class="dashboard-loading-message">
+              กำลังโหลดหน้า Dashboard...
+            </div>
+
+          </article>
+
+        </div>
+
+      </section>
+
+
+      <!-- =====================================================
+           VIEW: DATABASE
+      ====================================================== -->
+      <section
+        class="view"
+        id="view-database"
+        data-view-panel="database"
+        hidden
+      >
+
+        <!-- DATABASE WORKSPACE TABS -->
+        <div
+          class="db-workspace-tabs"
+          role="tablist"
+          aria-label="เครื่องมือฐานข้อมูล"
+        >
+
+          <button
+            class="db-workspace-tab active"
+            id="dbTabBrowse"
+            type="button"
+            role="tab"
+            aria-selected="true"
+            aria-controls="dbPanelBrowse"
+            data-db-tab="browse"
+            tabindex="0"
+          >
+            ▤ ข้อมูล
+          </button>
+
+          <button
+            class="db-workspace-tab"
+            id="dbTabUpload"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="dbPanelUpload"
+            data-db-tab="upload"
+            tabindex="-1"
+          >
+            ⇧ นำเข้าข้อมูล
+          </button>
+
+          <button
+            class="db-workspace-tab"
+            id="dbTabExport"
+            type="button"
+            role="tab"
+            aria-selected="false"
+            aria-controls="dbPanelExport"
+            data-db-tab="export"
+            tabindex="-1"
+          >
+            ⇩ ส่งออกข้อมูล
+          </button>
+
+        </div>
+
+
+        <!-- =================================================
+             DATABASE: BROWSE
+        ================================================== -->
+        <div
+          class="db-panel"
+          id="dbPanelBrowse"
+          role="tabpanel"
+          aria-labelledby="dbTabBrowse"
+          data-db-panel="browse"
+        >
+
+          <article class="card">
+
+            <div class="section-head">
+
+              <div>
+                <div class="section-title">ฐานข้อมูล</div>
+
+                <div class="section-sub">
+                  เลือก Sheet ค้นหา และดูข้อมูลแบบแบ่งหน้า
+                </div>
+              </div>
+
+              <div class="inline-actions">
+
+                <span class="sheet-chip" id="dataSheetBadge">
+                  ยังไม่เลือก Sheet
+                </span>
+
+                <button
+                  class="btn btn-light"
+                  id="btnRefreshDb"
+                  type="button"
+                >
+                  ↻ รีเฟรช
+                </button>
+
+              </div>
+
+            </div>
+
+
+            <!-- DATABASE TOOLBAR -->
+            <div class="toolbar">
+
+              <div class="field">
+                <label for="dataSheet">Sheet</label>
+
+                <select class="select" id="dataSheet">
+                  <option value="">กำลังโหลด...</option>
+                </select>
+              </div>
+
+              <div class="field grow">
+                <label for="searchInput">
+                  ค้นหาข้อมูลทุกคอลัมน์
+                </label>
+
+                <input
+                  class="input"
+                  id="searchInput"
+                  type="search"
+                  placeholder="พิมพ์คำค้นหา..."
+                  autocomplete="off"
+                >
+              </div>
+
+              <div class="field">
+                <label for="pageSize">จำนวนแถวต่อหน้า</label>
+
+                <select class="select" id="pageSize">
+                  <option value="10">10 แถว</option>
+                  <option value="25" selected>25 แถว</option>
+                  <option value="50">50 แถว</option>
+                  <option value="100">100 แถว</option>
+                </select>
+              </div>
+
+              <button
+                class="btn btn-primary"
+                id="btnSearch"
+                type="button"
+              >
+                ค้นหา
+              </button>
+
+            </div>
+
+
+            <!-- DATABASE TABLE -->
+            <div class="table-wrap">
+
+              <table id="dataTable">
+
+                <thead>
+                  <tr>
+                    <th>ข้อมูล</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  <tr>
+                    <td class="table-empty">
+                      เลือก Sheet เพื่อเริ่มต้น
+                    </td>
+                  </tr>
+                </tbody>
+
+              </table>
+
+            </div>
+
+
+            <!-- DATABASE PAGINATION -->
+            <div class="table-footer">
+
+              <div class="muted" id="tableInfo">
+                ยังไม่มีข้อมูล
+              </div>
+
+              <div class="pagination">
+
+                <button
+                  class="btn btn-light"
+                  id="btnPrev"
+                  type="button"
+                  disabled
+                >
+                  ← ก่อนหน้า
+                </button>
+
+                <span class="page-label" id="pageInfo">
+                  หน้า 1 / 1
+                </span>
+
+                <button
+                  class="btn btn-light"
+                  id="btnNext"
+                  type="button"
+                  disabled
+                >
+                  ถัดไป →
+                </button>
+
+              </div>
+
+            </div>
+
+          </article>
+
+        </div>
+
+
+        <!-- =================================================
+             DATABASE: IMPORT
+        ================================================== -->
+        <div
+          class="db-panel"
+          id="dbPanelUpload"
+          role="tabpanel"
+          aria-labelledby="dbTabUpload"
+          data-db-panel="upload"
+          hidden
+        >
+
+          <article class="card">
+
+            <div class="db-panel-heading">
+
+              <div class="db-heading-icon" aria-hidden="true">⇧</div>
+
+              <div>
+                <h2>นำเข้าข้อมูลอัตโนมัติ</h2>
+
+                <p>
+                  เลือกไฟล์ Excel หรือ CSV เพื่อเริ่มนำเข้าข้อมูล
+                  ระบบจะประมวลผลทุก Sheet ที่มีหัวตาราง
+                  และแสดงความคืบหน้าระหว่างนำเข้า
+                </p>
+              </div>
+
+            </div>
+
+
+            <!-- IMPORT TARGET -->
+            <div class="upload-target">
+
+              <span class="target-label">
+                รูปแบบการนำเข้า
+              </span>
+
+              <strong id="uploadTargetName">
+                ทุก Sheet ในไฟล์
+              </strong>
+
+              <span class="muted">
+                ชื่อ Sheet ในไฟล์จะใช้เป็นชื่อ Sheet ปลายทาง
+                หากยังไม่มี ระบบจะสร้าง Sheet ใหม่ให้อัตโนมัติ
+              </span>
+
+            </div>
+
+
+            <!-- FILE DROP ZONE -->
+            <div
+              class="upload-zone"
+              id="dropZone"
+              role="group"
+              aria-label="พื้นที่เลือกไฟล์สำหรับนำเข้าข้อมูล"
+            >
+
+              <div class="upload-icon" aria-hidden="true">⇧</div>
+
+              <div class="upload-title">
+                ลากไฟล์มาวาง หรือเลือกไฟล์
+              </div>
+
+              <div class="upload-sub">
+                รองรับ Excel (.xlsx, .xls) และ CSV (.csv)
+              </div>
+
+              <div class="mt-16">
+
+                <button
+                  class="btn btn-primary"
+                  id="btnChooseFile"
+                  type="button"
+                >
+                  เลือกไฟล์
+                </button>
+
+                <input
+                  class="hidden"
+                  type="file"
+                  id="fileInput"
+                  accept=".xlsx,.xls,.csv"
+                >
+
+              </div>
+
+              <div class="muted mt-12" id="fileName">
+                ยังไม่ได้เลือกไฟล์
+              </div>
+
+            </div>
+
+
+            <!-- IMPORT PROGRESS -->
+            <div class="progress-area">
+
+              <div class="progress-heading">
+
+                <strong id="progressText">
+                  พร้อมอัปโหลด
+                </strong>
+
+                <strong id="progressPercent">
+                  0%
+                </strong>
+
+              </div>
+
+              <div
+                class="progress-track"
+                id="importProgressTrack"
+                role="progressbar"
+                aria-label="ความคืบหน้าการนำเข้าข้อมูล"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow="0"
+                hidden
+              >
+
+                <div
+                  class="progress-bar"
+                  id="importProgress"
+                  style="width: 0%"
+                ></div>
+
+              </div>
+
+              <div class="progress-detail">
+
+                <span id="progressRows">
+                  นำเข้าแล้ว 0 แถว
+                </span>
+
+                <span id="progressTotal">
+                  ทั้งหมด 0 แถว
+                </span>
+
+              </div>
+
+            </div>
+
+
+            <!-- IMPORT RESULT -->
+            <div
+              id="importResult"
+              aria-live="polite"
+              aria-atomic="true"
+            ></div>
+
+          </article>
+
+        </div>
+
+
+        <!-- =================================================
+             DATABASE: EXPORT
+        ================================================== -->
+        <div
+          class="db-panel"
+          id="dbPanelExport"
+          role="tabpanel"
+          aria-labelledby="dbTabExport"
+          data-db-panel="export"
+          hidden
+        >
+
+          <article class="card">
+
+            <div class="db-panel-heading">
+
+              <div class="db-heading-icon export" aria-hidden="true">
+                ⇩
+              </div>
+
+              <div>
+                <h2>ส่งออกข้อมูล</h2>
+
+                <p>
+                  ดาวน์โหลดข้อมูลจาก Google Sheets
+                  ลงในเครื่องของคุณ
+                </p>
+              </div>
+
+            </div>
+
+
+            <!-- EXPORT SHEET SELECTOR -->
+            <div class="toolbar">
+
+              <div class="field grow">
+                <label for="exportSheet">เลือก Sheet</label>
+
+                <select class="select" id="exportSheet">
+                  <option value="">ทุก Sheet</option>
+                </select>
+              </div>
+
+              <button
+                class="btn btn-primary"
+                id="btnLoadExport"
+                type="button"
+              >
+                โหลดข้อมูล
+              </button>
+
+            </div>
+
+
+            <!-- EXPORT STATS -->
+            <div class="export-stats">
+
+              <div class="export-stat">
+                <div class="kpi-label">จำนวน Sheets</div>
+                <div class="kpi-value" id="exportSheetCount">—</div>
+              </div>
+
+              <div class="export-stat">
+                <div class="kpi-label">จำนวนแถวข้อมูล</div>
+                <div class="kpi-value" id="exportRowCount">—</div>
+              </div>
+
+              <div class="export-stat">
+                <div class="kpi-label">สถานะ</div>
+                <div class="kpi-value compact" id="exportStatus">
+                  รอโหลด
+                </div>
+              </div>
+
+            </div>
+
+
+            <!-- EXPORT FORMATS -->
+            <div class="section-title mb-12">
+              เลือกรูปแบบไฟล์
+            </div>
+
+            <div class="export-format-grid">
+
+              <button
+                class="export-format xlsx"
+                id="btnExportXlsx"
+                type="button"
+                disabled
+              >
+
+                <span class="format-icon" aria-hidden="true">▦</span>
+
+                <strong>Excel (.xlsx)</strong>
+
+                <small>
+                  ส่งออกหนึ่ง Sheet หรือรวมหลาย Sheet
+                  ในไฟล์เดียว
+                </small>
+
+              </button>
+
+
+              <button
+                class="export-format csv"
+                id="btnExportCsv"
+                type="button"
+                disabled
+              >
+
+                <span class="format-icon" aria-hidden="true">▤</span>
+
+                <strong>CSV (.csv)</strong>
+
+                <small>
+                  ดาวน์โหลดข้อมูล CSV ของ Sheet ที่เลือก
+                </small>
+
+              </button>
+
+
+              <button
+                class="export-format json"
+                id="btnExportJson"
+                type="button"
+                disabled
+              >
+
+                <span class="format-icon" aria-hidden="true">{ }</span>
+
+                <strong>JSON (.json)</strong>
+
+                <small>
+                  ส่งออกข้อมูลสำหรับนำไปใช้กับระบบอื่น
+                </small>
+
+              </button>
+
+            </div>
+
+
+            <!-- EXPORT NOTICE -->
+            <div class="notice info mt-16">
+              ขีดจำกัดการส่งออกขึ้นอยู่กับการตั้งค่าใน Code.gs
+              และ CSV รองรับครั้งละ 1 Sheet
+            </div>
+
+            <div
+              id="exportWarnings"
+              aria-live="polite"
+            ></div>
+
+          </article>
+
+        </div>
+
+      </section>
+
+
+      <!-- =====================================================
+           FOOTER
+      ====================================================== -->
+      <footer class="footer">
+        REPORT DATA INTELLIGENCE · GOOGLE APPS SCRIPT API
+      </footer>
+
+    </main>
+
+  </div>
 </body>
 </html>
