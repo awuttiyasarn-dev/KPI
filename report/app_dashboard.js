@@ -33,7 +33,7 @@
     PAGE_SIZE: 100,
     MAX_PAGES: 100,
 
-    API_TIMEOUT: 25000,
+    API_TIMEOUT: 60000,
     CHART_TIMEOUT: 12000,
 
     CHART_JS_URL:
@@ -316,91 +316,103 @@
      7. API REQUEST
   ========================================================== */
 
-  async function apiRequest(action, params = {}) {
-    const controller = new AbortController();
+  
+async function apiRequest(action, params = {}) {
+  const controller = new AbortController();
+  let timedOut = false;
 
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      CONFIG.API_TIMEOUT
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, CONFIG.API_TIMEOUT);
+
+  try {
+    console.info("[REPORT API] Request:", action, params);
+    console.info("[REPORT API] URL:", CONFIG.API_URL);
+    console.info(
+      "[REPORT API] Timeout:",
+      `${CONFIG.API_TIMEOUT / 1000} seconds`
     );
 
-    try {
-      console.info("[REPORT API] Request:", action, params);
+    const response = await fetch(CONFIG.API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+      body: JSON.stringify({
+        action,
+        key: CONFIG.ACCESS_KEY,
+        params
+      }),
+      redirect: "follow",
+      cache: "no-store",
+      signal: controller.signal
+    });
 
-      const response = await fetch(CONFIG.API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "text/plain;charset=utf-8"
-        },
-        body: JSON.stringify({
-          action,
-          key: CONFIG.ACCESS_KEY,
-          params
-        }),
-        redirect: "follow",
-        cache: "no-store",
-        signal: controller.signal
-      });
+    const responseText = await response.text();
 
-      const responseText = await response.text();
+    console.info("[REPORT API] HTTP:", response.status);
+    console.info(
+      "[REPORT API] Response preview:",
+      responseText.slice(0, 500)
+    );
 
-      console.info("[REPORT API] HTTP:", response.status);
-      console.info(
-        "[REPORT API] Response preview:",
-        responseText.slice(0, 500)
-      );
-
-      if (!response.ok) {
-        throw new Error(`API ตอบกลับ HTTP ${response.status}`);
-      }
-
-      let data;
-
-      try {
-        data = JSON.parse(responseText);
-      } catch (_) {
-        throw new Error(
-          "API ส่งข้อมูลกลับมาไม่ใช่ JSON กรุณาตรวจสอบ Code.gs"
-        );
-      }
-
-      if (!data || typeof data !== "object") {
-        throw new Error("รูปแบบข้อมูลจาก API ไม่ถูกต้อง");
-      }
-
-      if (data.ok === false || data.success === false || data.error) {
-        throw new Error(
-          String(
-            data.message ||
-            data.error ||
-            "Google Apps Script ปฏิเสธคำขอ"
-          )
-        );
-      }
-
-      return data;
-
-    } catch (error) {
-      console.error("[REPORT API] Error:", error);
-
-      if (error.name === "AbortError") {
-        throw new Error(
-          `API ไม่ตอบกลับภายใน ${CONFIG.API_TIMEOUT / 1000} วินาที`
-        );
-      }
-
-      if (error instanceof TypeError) {
-        throw new Error(
-          "เรียก Google Apps Script ไม่สำเร็จ กรุณาตรวจสอบ URL และสิทธิ์ Web App"
-        );
-      }
-
-      throw error;
-
-    } finally {
-      clearTimeout(timeoutId);
+    if (!response.ok) {
+      throw new Error(`API ตอบกลับ HTTP ${response.status}`);
     }
+
+    let data;
+
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      throw new Error(
+        "API ส่งข้อมูลกลับมาไม่ใช่ JSON กรุณาตรวจสอบ Code.gs"
+      );
+    }
+
+    if (!data || typeof data !== "object") {
+      throw new Error("รูปแบบข้อมูลจาก API ไม่ถูกต้อง");
+    }
+
+    if (data.ok === false || data.success === false || data.error) {
+      throw new Error(
+        String(
+          data.message ||
+          data.error ||
+          "Google Apps Script ปฏิเสธคำขอ"
+        )
+      );
+    }
+
+    return data;
+
+  } catch (error) {
+    console.error("[REPORT API] Error:", error);
+
+    if (error.name === "AbortError" && timedOut) {
+      throw new Error(
+        `API ใช้เวลาตอบกลับเกิน ${CONFIG.API_TIMEOUT / 1000} วินาที`
+      );
+    }
+
+    if (error.name === "AbortError") {
+      throw new Error("คำขอ API ถูกยกเลิกก่อนรับข้อมูลครบ");
+    }
+
+    if (error instanceof TypeError) {
+      throw new Error(
+        "เชื่อมต่อ Google Apps Script ไม่สำเร็จ กรุณาตรวจสอบ URL, สิทธิ์ และเครือข่าย"
+      );
+    }
+
+    throw error;
+
+  } finally {
+    clearTimeout(timeoutId);
   }
+}
+
 
   /* ==========================================================
      8. RESPONSE NORMALIZATION
