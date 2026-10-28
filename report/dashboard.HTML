@@ -1,0 +1,222 @@
+<div id="reportKpiDashboard" class="report-dashboard">
+  <!-- Dashboard Header -->
+  <header class="rd-header">
+    <div class="rd-header-content">
+      <div class="rd-eyebrow">
+        <span class="rd-eyebrow-dot" aria-hidden="true"></span>
+        REPORT MANAGEMENT SYSTEM
+      </div>
+      <h1 class="rd-title">รายงานผลการดำเนินงาน KPI</h1>
+      <p class="rd-subtitle">ระบบติดตามและประเมินผลตัวชี้วัดจากฐานข้อมูล REPORT</p>
+    </div>
+
+    <div class="rd-header-actions">
+      <button type="button" id="rdRefreshBtn" class="rd-btn rd-btn-primary">
+        <span aria-hidden="true">↻</span>
+        <span>รีเฟรชข้อมูล</span>
+      </button>
+      <button type="button" id="rdExportBtn" class="rd-btn rd-btn-outline" disabled>
+        <span aria-hidden="true">⇩</span>
+        <span>ส่งออก Excel</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Loading / Error Status -->
+  <div id="rdLoadingStatus" class="rd-loading-status" role="status" aria-live="polite" aria-busy="true">
+    <div class="rd-loading-spinner" aria-hidden="true"></div>
+    <div class="rd-loading-dot" id="rdLoadingDot" aria-hidden="true"></div>
+    <div class="rd-loading-copy">
+      <strong id="rdLoadingTitle">กำลังเตรียมโหลดข้อมูล</strong>
+      <span id="rdLoadingMessage">กำลังเชื่อมต่อ Google Apps Script...</span>
+      <span id="rdLoadingCount" class="rd-loading-count"></span>
+    </div>
+  </div>
+
+  <!-- Dashboard Alert -->
+  <div id="rdDashboardAlert" class="rd-alert" hidden aria-live="polite" role="alert"></div>
+
+  <!-- Filter Panel -->
+  <section class="rd-panel rd-filter-panel" aria-labelledby="rdFilterHeading">
+    <div class="rd-panel-heading">
+      <div>
+        <h2 id="rdFilterHeading" class="rd-section-title">ตัวกรองข้อมูล</h2>
+        <p class="rd-section-description">เลือกปีงบประมาณ กลุ่มตัวชี้วัด และค้นหาข้อมูลที่ต้องการ</p>
+      </div>
+      <button type="button" id="rdResetFilters" class="rd-text-btn">ล้างตัวกรอง</button>
+    </div>
+
+    <div class="rd-filter-grid">
+      <label class="rd-field" for="rdFilterYear">
+        <span>ปีงบประมาณ</span>
+        <select id="rdFilterYear">
+          <option value="">ทุกปีงบประมาณ</option>
+        </select>
+      </label>
+
+      <label class="rd-field" for="rdFilterGroup">
+        <span>กลุ่มตัวชี้วัด</span>
+        <select id="rdFilterGroup">
+          <option value="">ทุกกลุ่ม KPI</option>
+        </select>
+      </label>
+
+      <label class="rd-field" for="rdFilterExcellence">
+        <span>Excellence</span>
+        <select id="rdFilterExcellence">
+          <option value="">ทุก Excellence</option>
+        </select>
+      </label>
+
+      <label class="rd-field" for="rdFilterSection">
+        <span>หน่วยงาน / ส่วนงาน</span>
+        <select id="rdFilterSection">
+          <option value="">ทุกหน่วยงาน</option>
+        </select>
+      </label>
+
+      <label class="rd-field rd-search-field" for="rdFilterSearch">
+        <span>ค้นหาตัวชี้วัด</span>
+        <input
+          type="search"
+          id="rdFilterSearch"
+          placeholder="ค้นหาชื่อ KPI, คำอธิบาย หรือหน่วยงาน..."
+          autocomplete="off"
+        />
+      </label>
+    </div>
+
+    <!-- Table status -->
+    <div id="rdTableStatus" class="rd-table-status" aria-live="polite"></div>
+  </section>
+
+  <!-- Charts -->
+  <section class="rd-chart-section" aria-labelledby="rdChartHeading">
+    <div class="rd-section-heading">
+      <div>
+        <h2 id="rdChartHeading" class="rd-section-title">ภาพรวมผลการดำเนินงาน</h2>
+        <p class="rd-section-description">วิเคราะห์จำนวนตัวชี้วัดและผลการประเมินตามข้อมูลที่กรอง</p>
+      </div>
+    </div>
+
+    <div class="rd-chart-grid">
+
+      <article class="rd-panel rd-chart-card rd-chart-result rd-chart-wide">
+        <div class="rd-chart-heading">
+          <div>
+            <h3>ผลลัพธ์เทียบเป้าหมาย: ตามกลุ่มตัวชี้วัด</h3>
+            <p>รวมผลลัพธ์และเป้าหมายแยกตามกลุ่มตัวชี้วัด (kpi_Group_Des)</p>
+          </div>
+          <a class="rd-text-btn rd-open-chart" href="chart.html" target="_blank" rel="noopener">เปิดกราฟแบบหน้าเดี่ยว ↗</a>
+        </div>
+        <div class="rd-chart-note" id="rdResultChartNote"></div>
+        <div class="rd-chart-container">
+          <canvas id="rdResultTargetChart" role="img" aria-label="กราฟผลลัพธ์เทียบเป้าหมายตามกลุ่มตัวชี้วัด"></canvas>
+        </div>
+      </article>
+
+      <article class="rd-panel rd-chart-card rd-chart-result rd-chart-wide">
+        <div class="rd-chart-heading">
+          <div>
+            <h3>ผลลัพธ์เทียบเป้าหมาย: ตาม Excellence</h3>
+            <p>รวมผลลัพธ์และเป้าหมายแยกตาม Excellence</p>
+          </div>
+        </div>
+        <div class="rd-chart-note" id="rdResultExcellenceNote"></div>
+        <div class="rd-chart-container">
+          <canvas id="rdResultTargetExcellenceChart" role="img" aria-label="กราฟผลลัพธ์เทียบเป้าหมายตาม Excellence"></canvas>
+        </div>
+      </article>
+
+      <article class="rd-panel rd-chart-card rd-chart-result rd-chart-wide">
+        <div class="rd-chart-heading">
+          <div>
+            <h3>ผลลัพธ์เทียบเป้าหมาย: ตามหน่วยงาน</h3>
+            <p>รวมผลลัพธ์และเป้าหมายแยกตามหน่วยงาน (Tsection)</p>
+          </div>
+        </div>
+        <div class="rd-chart-note" id="rdResultSectionNote"></div>
+        <div class="rd-chart-container">
+          <canvas id="rdResultTargetSectionChart" role="img" aria-label="กราฟผลลัพธ์เทียบเป้าหมายตามหน่วยงาน"></canvas>
+        </div>
+      </article>
+
+      <article class="rd-panel rd-chart-card rd-chart-count rd-chart-wide">
+        <div class="rd-chart-heading">
+          <div>
+            <h3>จำนวนตัวชี้วัดตามกลุ่ม</h3>
+            <p>เปรียบเทียบจำนวนรายการในแต่ละกลุ่มตัวชี้วัด</p>
+          </div>
+        </div>
+        <div class="rd-chart-note" id="rdGroupChartNote"></div>
+        <div class="rd-chart-container">
+          <canvas id="rdGroupChart" role="img" aria-label="กราฟจำนวนตัวชี้วัดตามกลุ่ม"></canvas>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- KPI Table -->
+  <section class="rd-panel rd-table-panel" aria-labelledby="rdTableHeading">
+    <div class="rd-panel-heading rd-table-heading">
+      <div>
+        <h2 id="rdTableHeading" class="rd-section-title">รายละเอียดตัวชี้วัด</h2>
+        <p class="rd-section-description">รายการ KPI พร้อมเป้าหมาย ผลการดำเนินงาน และเกณฑ์การประเมิน</p>
+      </div>
+      <div class="rd-table-meta">
+        <span id="rdVisibleCount" aria-live="polite">0</span> รายการ
+      </div>
+    </div>
+
+    <div class="rd-table-toolbar">
+      <label class="rd-field rd-page-size-field" for="rdPageSize">
+        <span>แสดงต่อหน้า</span>
+        <select id="rdPageSize">
+          <option value="10">10 รายการ</option>
+          <option value="25" selected>25 รายการ</option>
+          <option value="50">50 รายการ</option>
+          <option value="100">100 รายการ</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="rd-table-wrapper" role="region" aria-labelledby="rdTableHeading" tabindex="0">
+      <table id="rdKpiTable" class="rd-table">
+        <thead>
+          <tr>
+            <th scope="col">ปีงบประมาณ</th>
+            <th scope="col">กลุ่มตัวชี้วัด</th>
+            <th scope="col">ตัวชี้วัด / รายละเอียด</th>
+            <th scope="col">ผลลัพธ์</th>
+            <th scope="col">เป้าหมาย</th>
+            <th scope="col">ร้อยละ</th>
+            <th scope="col">สรุปผล</th>
+          </tr>
+        </thead>
+        <tbody id="rdKpiTableBody">
+          <tr>
+            <td colspan="7" class="rd-table-placeholder">กำลังโหลดข้อมูล...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <nav class="rd-pagination" aria-label="การแบ่งหน้า">
+      <div id="rdPaginationInfo" class="rd-pagination-info" aria-live="polite">แสดง 0–0 จาก 0 รายการ</div>
+      <div class="rd-pagination-actions">
+        <button type="button" id="rdPrevPage" class="rd-page-btn" disabled>ก่อนหน้า</button>
+        <span id="rdPageInfo" class="rd-page-info" aria-live="polite">หน้า 1 / 1</span>
+        <button type="button" id="rdNextPage" class="rd-page-btn" disabled>ถัดไป</button>
+      </div>
+    </nav>
+
+  </section>
+
+  <!-- Footer -->
+  <footer class="rd-footer">
+    <span>REPORT KPI Dashboard</span>
+    <span id="rdLastUpdated" aria-live="polite">รอข้อมูลล่าสุด</span>
+  </footer>
+
+</div>
