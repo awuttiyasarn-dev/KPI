@@ -2,7 +2,7 @@
  * REPORT KPI DASHBOARD
  * File       : app_dashboard.js
  * Frontend   : GitHub Pages
- * HTML       : dashboard.HTML
+ * HTML       : dashboard.html
  * API        : Google Apps Script Web App
  * Sheet      : REPORT_02
  * ============================================================ */
@@ -39,16 +39,15 @@
     CHART_JS_URL:
       "https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js",
 
-    // สีให้ตรงกับธีมใน dashboard.css
     COLORS: {
-      primary: "#1f6f47",    // ผลลัพธ์
-      secondary: "#6fa3e0",  // เป้าหมาย
-      teal: "#0f8a7e",
-      amber: "#d9922b",
-      purple: "#7a58c9",
+      primary: "#1a8f63",
+      secondary: "#8db8ea",
+      teal: "#0f9e91",
+      amber: "#f59e0b",
+      purple: "#8b5cf6",
       gray: "#94a3b8",
-      red: "#c94444",
-      green: "#1f6f47"
+      red: "#dc2626",
+      green: "#16a34a"
     }
   };
 
@@ -205,43 +204,63 @@
 
   /* ==========================================================
      5. LOADING STATUS
-     สี/พื้นหลังควบคุมด้วย CSS ผ่าน data-load-state
   ========================================================== */
-
-  const LOADING_TITLES = {
-    loading: "กำลังโหลดข้อมูล",
-    success: "โหลดข้อมูลสำเร็จ",
-    error: "โหลดข้อมูลไม่สำเร็จ"
-  };
 
   function setLoadingStatus(state, message = "", count = "") {
     const panel = $("rdLoadingStatus");
+    const dot = $("rdLoadingDot");
     const title = $("rdLoadingTitle");
     const detail = $("rdLoadingMessage");
     const countEl = $("rdLoadingCount");
 
     if (!panel || !title || !detail || !countEl) {
-      console.warn(
-        "[REPORT] Loading status elements are missing."
-      );
+      console.warn("[REPORT] Loading status elements are missing.");
       return;
     }
 
-    const titleText = LOADING_TITLES[state] || LOADING_TITLES.loading;
+    const styles = {
+      loading: {
+        title: "กำลังโหลดข้อมูล",
+        color: "#f59e0b",
+        background: "#fffbeb",
+        border: "#fde68a"
+      },
+      success: {
+        title: "โหลดข้อมูลสำเร็จ",
+        color: "#16a34a",
+        background: "#f0fdf4",
+        border: "#bbf7d0"
+      },
+      error: {
+        title: "โหลดข้อมูลไม่สำเร็จ",
+        color: "#dc2626",
+        background: "#fef2f2",
+        border: "#fecaca"
+      }
+    };
 
-    title.textContent = titleText;
+    const style = styles[state] || styles.loading;
+
+    title.textContent = style.title;
     detail.textContent = message;
     countEl.textContent = count;
 
     panel.dataset.loadState = state;
     panel.setAttribute("aria-live", "polite");
     panel.setAttribute("role", "status");
-    panel.setAttribute("aria-label", titleText);
+    panel.setAttribute("aria-label", style.title);
     panel.setAttribute("aria-busy", state === "loading" ? "true" : "false");
-    panel.hidden = false;
+
+    panel.style.display = "flex";
+    panel.style.background = style.background;
+    panel.style.borderColor = style.border;
+    panel.style.color = "#334155";
+
+    if (dot) {
+      dot.style.background = style.color;
+    }
   }
 
-  // ใช้ฟังก์ชันนี้หลังโหลดเสร็จ เพื่อให้ข้อความถูกอัปเดตตรง ๆ
   function setFinalLoadingStatus(total, message = "") {
     setLoadingStatus(
       "success",
@@ -278,7 +297,15 @@
 
     element.textContent = message || "";
     element.hidden = !message;
-    element.dataset.type = type === "error" ? "error" : "warning";
+
+    element.style.borderColor =
+      type === "error" ? "#fecaca" : "#f4d6a0";
+
+    element.style.color =
+      type === "error" ? "#991b1b" : "#92400e";
+
+    element.style.background =
+      type === "error" ? "#fef2f2" : "#fffbeb";
   }
 
   function clearAlert() {
@@ -590,7 +617,6 @@
         script.async = true;
         script.dataset.reportChartjs = "true";
       } else {
-        // สคริปต์เดิมอาจโหลดเสร็จหรือผิดพลาดไปแล้ว
         script.remove();
         script = document.createElement("script");
         script.src = CONFIG.CHART_JS_URL;
@@ -726,10 +752,14 @@
   }
 
   /* ==========================================================
+     12. SUMMARY CARDS
+  ========================================================== */
+
+  /* ==========================================================
      13. CHARTS
   ========================================================== */
 
-  const CHART_FONT = '"IBM Plex Sans Thai", "IBM Plex Sans", system-ui, sans-serif';
+  const CHART_FONT = '"IBM Plex Sans Thai", "Inter", system-ui, sans-serif';
 
   function ensureChartDefaults() {
     const C = window.Chart;
@@ -737,19 +767,18 @@
 
     C.__rdStyled = true;
 
-    // ตั้งค่า style กลาง — ถ้าเวอร์ชัน Chart.js ไม่รองรับบางค่า ให้ข้ามไป ไม่ให้กราฟพัง
     try {
       C.defaults.font.family = CHART_FONT;
       C.defaults.font.size = 12;
-      C.defaults.color = "#4a6054";
+      C.defaults.color = "#52675c";
 
       Object.assign(C.defaults.plugins.tooltip, {
-        backgroundColor: "rgba(15, 74, 46, 0.96)",
+        backgroundColor: "rgba(20, 53, 42, 0.95)",
         titleColor: "#ffffff",
         bodyColor: "#e4f2ea",
         footerColor: "#bfe3cf",
         padding: 12,
-        cornerRadius: 8,
+        cornerRadius: 10,
         boxPadding: 5,
         caretSize: 6
       });
@@ -760,7 +789,6 @@
     }
   }
 
-  // แสดงตัวเลขที่ปลายแท่งกราฟแนวนอน
   const valueLabelsPlugin = {
     id: "rdValueLabels",
 
@@ -776,7 +804,7 @@
         const meta = chart.getDatasetMeta(datasetIndex);
         if (meta.hidden) return;
 
-        ctx.fillStyle = datasetIndex === 0 ? "#145c38" : "#3b72c4";
+        ctx.fillStyle = datasetIndex === 0 ? "#146c4a" : "#4f7fb5";
 
         meta.data.forEach((bar, index) => {
           const value = dataset.data[index];
@@ -790,7 +818,6 @@
     }
   };
 
-  // แสดงจำนวนรวมตรงกลางกราฟโดนัท
   const doughnutCenterPlugin = {
     id: "rdDoughnutCenter",
 
@@ -808,11 +835,11 @@
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
-      ctx.fillStyle = "#14281e";
+      ctx.fillStyle = "#172b22";
       ctx.font = `700 28px ${CHART_FONT}`;
       ctx.fillText(formatNumber(total, 0), x, y - 8);
 
-      ctx.fillStyle = "#7b8c82";
+      ctx.fillStyle = "#829187";
       ctx.font = `500 12px ${CHART_FONT}`;
       ctx.fillText("ตัวชี้วัด", x, y + 16);
 
@@ -830,24 +857,17 @@
     STATE.charts[key] = null;
   }
 
-  // ตั้งข้อความแจ้งในทุกกราฟ (ใช้ตอนโหลด Chart.js ไม่สำเร็จ)
-  function setAllChartNotes(message) {
-    Object.values(RESULT_GROUPS).forEach((mode) => {
-      setText(mode.noteId, message);
-    });
-    setText("rdGroupChartNote", message);
-  }
-
   function renderCharts(rows) {
     ensureChartDefaults();
 
     if (!window.Chart) {
       Object.values(RESULT_GROUPS).forEach((mode) => {
         destroyChart(mode.chartKey);
+        setText(mode.noteId, "ไม่พบ Chart.js จึงไม่สามารถแสดงกราฟได้");
       });
       destroyChart("group");
 
-      setAllChartNotes("ไม่พบ Chart.js จึงไม่สามารถแสดงกราฟได้");
+      setText("rdGroupChartNote", "ไม่พบ Chart.js จึงไม่สามารถแสดงกราฟได้");
 
       return false;
     }
@@ -879,9 +899,6 @@
     return result;
   }
 
-  // หน้า chart.html ใช้ <body class="rd-chart-only"> เพื่อแสดงเฉพาะกราฟ
-  const CHART_ONLY = document.body.classList.contains("rd-chart-only");
-
   const RESULT_GROUPS = {
     group: {
       field: "group", label: "กลุ่มตัวชี้วัด", filterId: "rdFilterGroup",
@@ -908,7 +925,15 @@
       const target = numberValue(row.target);
 
       if (!map.has(name)) {
-        map.set(name, { name, count: 0, result: 0, target: 0, pairResult: 0, pairTarget: 0, withTarget: 0 });
+        map.set(name, {
+          name,
+          count: 0,
+          result: 0,
+          target: 0,
+          pairResult: 0,
+          pairTarget: 0,
+          withTarget: 0
+        });
       }
 
       const item = map.get(name);
@@ -928,172 +953,187 @@
     );
   }
 
-  function renderResultTargetChart(key, rows) {
-    const mode = RESULT_GROUPS[key];
-    if (!mode) return;
+ function renderResultTargetChart() {
+  const canvas = $("rdResultTargetChart");
 
-    const canvas = $(mode.canvasId);
-    if (!canvas) return;
+  if (!canvas || !window.Chart) {
+    return;
+  }
 
-    destroyChart(mode.chartKey);
+  const rows = getFilteredRows();
+  const groups = new Map();
 
-    const allGroups = aggregateResultTarget(rows, mode.field);
+  rows.forEach((row) => {
+    const name = String(
+      row.group || "ไม่ระบุกลุ่ม"
+    ).trim();
 
-    if (!allGroups.length) {
-      setText(mode.noteId, "ไม่มีผลลัพธ์ที่เป็นตัวเลขสำหรับแสดงกราฟ");
-      return;
+    if (!groups.has(name)) {
+      groups.set(name, {
+        name,
+        resultTotal: 0,
+        targetTotal: 0,
+        resultCount: 0,
+        targetCount: 0
+      });
     }
 
-    const groups = allGroups.slice(0, CONFIG.RESULT_CHART_LIMIT);
+    const item = groups.get(name);
+    const result = toNumber(row.result);
+    const target = toNumber(row.target);
 
-    setText(
-      mode.noteId,
-      `รวมผลลัพธ์และเป้าหมายตาม${/^[A-Za-z]/.test(mode.label) ? " " : ""}${mode.label} · ` +
-        (allGroups.length > groups.length
-          ? `แสดง ${formatNumber(groups.length, 0)} จาก ${formatNumber(allGroups.length, 0)} กลุ่ม (เรียงตามจำนวนตัวชี้วัด)`
-          : `${formatNumber(groups.length, 0)} กลุ่ม`) +
-        (CHART_ONLY ? "" : " · คลิกแท่งเพื่อกรองตามกลุ่มนั้น")
-    );
-
-    const labels = groups.map((g) =>
-      g.name.length > 34 ? `${g.name.slice(0, 31)}...` : g.name
-    );
-    const results = groups.map((g) => g.result);
-    const targets = groups.map((g) => (g.withTarget ? g.target : null));
-    const hasAnyTarget = targets.some((value) => value !== null);
-
-    // ปรับความสูงตามจำนวนกลุ่ม เพื่อไม่ให้ป้ายชื่อทับกัน
-    const container = canvas.parentElement;
-    if (container) {
-      const perRow = hasAnyTarget ? 46 : 30;
-      container.style.height = `${Math.max(240, 90 + groups.length * perRow)}px`;
+    if (result !== null) {
+      item.resultTotal += result;
+      item.resultCount += 1;
     }
 
-    STATE.charts[mode.chartKey] = new window.Chart(canvas, {
-      type: "bar",
-      plugins: [valueLabelsPlugin],
+    if (target !== null) {
+      item.targetTotal += target;
+      item.targetCount += 1;
+    }
+  });
 
-      data: {
-        labels,
-        datasets: [
-          {
-            label: "ผลลัพธ์รวม",
-            data: results,
-            backgroundColor: CONFIG.COLORS.primary,
-            borderRadius: 4,
-            borderSkipped: false,
-            barPercentage: 0.85,
-            categoryPercentage: 0.78,
-            maxBarThickness: 18
-          },
+  const chartRows = Array.from(groups.values())
+    .map((item) => ({
+      ...item,
+      result: item.resultCount
+        ? item.resultTotal / item.resultCount
+        : 0,
+      target: item.targetCount
+        ? item.targetTotal / item.targetCount
+        : 0
+    }))
+    .filter(
+      (item) => item.resultCount || item.targetCount
+    )
+    .sort((a, b) => b.result - a.result)
+    .slice(0, CONFIG.RESULT_CHART_LIMIT);
 
-          ...(hasAnyTarget ? [{
-            label: "เป้าหมายรวม",
-            data: targets,
-            backgroundColor: CONFIG.COLORS.secondary,
-            borderRadius: 4,
-            borderSkipped: false,
-            barPercentage: 0.85,
-            categoryPercentage: 0.78,
-            maxBarThickness: 18
-          }] : [])
-        ]
+  if (STATE.charts.resultTarget) {
+    STATE.charts.resultTarget.destroy();
+    STATE.charts.resultTarget = null;
+  }
+
+  if (!chartRows.length) {
+    setChartNote(
+      "rdResultTargetNote",
+      "ไม่พบข้อมูลผลลัพธ์และเป้าหมายสำหรับแสดงกราฟ"
+    );
+    return;
+  }
+
+  const ctx = canvas.getContext("2d");
+
+  STATE.charts.resultTarget = new Chart(ctx, {
+    type: "bar",
+
+    data: {
+      labels: chartRows.map((item) => item.name),
+
+      datasets: [
+        {
+          label: "ผลลัพธ์เฉลี่ย",
+          data: chartRows.map((item) => item.result),
+          backgroundColor: CONFIG.COLORS.primary,
+          borderRadius: 6
+        },
+        {
+          label: "เป้าหมายเฉลี่ย",
+          data: chartRows.map((item) => item.target),
+          backgroundColor: CONFIG.COLORS.secondary,
+          borderRadius: 6
+        }
+      ]
+    },
+
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+
+      interaction: {
+        mode: "index",
+        intersect: false
       },
 
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        indexAxis: "y",
-
-        interaction: {
-          mode: "nearest",
-          intersect: true
+      plugins: {
+        legend: {
+          position: "top"
         },
 
-        layout: {
-          padding: { right: 56 }
-        },
-
-        plugins: {
-          legend: {
-            position: "bottom",
-            labels: {
-              usePointStyle: true,
-              pointStyle: "rectRounded",
-              boxWidth: 10,
-              boxHeight: 10,
-              padding: 18
-            }
-          },
-
-          tooltip: {
-            callbacks: {
-              title(items) {
-                return groups[items[0].dataIndex]?.name || "";
-              },
-
-              label(context) {
-                return `${context.dataset.label}: ${formatNumber(context.raw)}`;
-              },
-
-              afterBody(items) {
-                const g = groups[items[0].dataIndex];
-                if (!g) return [];
-
-                const lines = [`จำนวนตัวชี้วัดที่มีผลลัพธ์: ${formatNumber(g.count, 0)}`];
-
-                if (g.pairTarget > 0) {
-                  lines.push(
-                    `ร้อยละเทียบเป้าหมาย: ${formatNumber((g.pairResult / g.pairTarget) * 100)}%`
-                  );
-                }
-
-                return lines;
-              }
+        tooltip: {
+          callbacks: {
+            label(context) {
+              return `${context.dataset.label}: ${
+                Number(context.parsed.y || 0)
+                  .toLocaleString("th-TH", {
+                    maximumFractionDigits: 2
+                  })
+              }`;
             }
           }
-        },
-
-        scales: {
-          x: {
-            beginAtZero: true,
-            border: { display: false },
-            grid: { color: "#e6eee9", borderDash: [4, 4] },
-            ticks: { padding: 6 }
-          },
-
-          y: {
-            border: { display: false },
-            grid: { display: false },
-            ticks: { autoSkip: false, color: "#2f4439" }
-          }
-        },
-
-        onHover(event, elements) {
-          const target = event.native?.target;
-          if (target) target.style.cursor = !CHART_ONLY && elements.length ? "pointer" : "default";
-        },
-
-        onClick(_event, elements) {
-          if (CHART_ONLY || !elements.length) return;
-
-          const g = groups[elements[0].index];
-          const select = $(mode.filterId);
-
-          if (!g || !select) return;
-
-          const hasOption = Array.from(select.options).some(
-            (option) => option.value === g.name
-          );
-
-          if (!hasOption) return;
-
-          select.value = g.name;
-          applyFilters();
         }
+      },
+
+      scales: {
+        x: {
+          ticks: {
+            autoSkip: false,
+            maxRotation: 45,
+            minRotation: 0
+          }
+        },
+
+        y: {
+          beginAtZero: true
+        }
+      },
+
+      onHover(event, elements) {
+        const target = event.native?.target;
+
+        if (target) {
+          target.style.cursor = elements.length
+            ? "pointer"
+            : "default";
+        }
+      },
+
+      onClick(_event, elements) {
+        if (!elements.length) {
+          return;
+        }
+
+        const selected = chartRows[elements[0].index];
+
+        if (!selected) {
+          return;
+        }
+
+        const filter = $("rdGroupFilter");
+
+        if (!filter) {
+          return;
+        }
+
+        const hasOption = Array.from(filter.options).some(
+          (option) => option.value === selected.name
+        );
+
+        if (!hasOption) {
+          return;
+        }
+
+        filter.value = selected.name;
+        applyFilters();
       }
-    });
-  }
+    }
+  });
+
+  setChartNote(
+    "rdResultTargetNote",
+    "แสดงผลลัพธ์เฉลี่ยเทียบกับเป้าหมายเฉลี่ย · คลิกแท่งเพื่อกรองตามกลุ่มนั้น"
+  );
+}
 
   function renderGroupChart(rows) {
     const canvas = $("rdGroupChart");
@@ -1131,9 +1171,9 @@
           data: groups.map(([, count]) => count),
 
           backgroundColor: [
-            "#1f6f47", "#3b72c4", "#0f8a7e", "#d9922b",
-            "#7a58c9", "#c95a85", "#4aa3c2", "#7fb34a",
-            "#d9763a", "#6b7a8f", "#2fb08f", "#a779d6"
+            "#1a8f63", "#4f8fd6", "#14a3a0", "#e3a634",
+            "#8b6bd6", "#d9628b", "#3aa0bd", "#7bb342",
+            "#e07b39", "#6b7a8f", "#2fbf9a", "#a779d6"
           ],
 
           borderColor: "#ffffff",
@@ -1215,10 +1255,8 @@
 
     if (number === null) return text;
 
-    // แสดง % เฉพาะเมื่อค่าต้นฉบับมี % หรือ field บ่งบอกว่าเป็นเปอร์เซ็นต์
-    return text.includes("%")
-      ? `${formatNumber(number)}%`
-      : formatNumber(number);
+    // สำหรับค่าเปอร์เซ็นต์ให้แสดง % เสมอ
+    return `${formatNumber(number)}%`;
   }
 
   function renderPagination(from, to, total, page, totalPages) {
@@ -1291,7 +1329,7 @@
           </td>
 
           <td class="rd-number">${escapeHTML(targetText)}</td>
-          <td class="rd-number">${escapeHTML(formatRate(row.percent))}</td>
+          <td class="rd-number">${escapeHTML(formatRate(row.percent ?? row.rate))}</td>
           <td>${escapeHTML(row.summary || "—")}</td>
         </tr>
       `;
@@ -1429,7 +1467,6 @@
     setStatus("กำลังโหลดข้อมูลจาก REPORT_02...");
 
     try {
-      // ไม่ให้ปัญหา Chart.js ขัดขวางการโหลดข้อมูล
       const chartPromise = ensureChartJS().catch((error) => {
         console.error("[REPORT CHART] Loader error:", error);
         return false;
@@ -1458,7 +1495,15 @@
         : false;
 
       if (!chartAvailable) {
-        setAllChartNotes("โหลดข้อมูลแล้ว แต่โหลด Chart.js ไม่สำเร็จ");
+        setText(
+          "rdResultChartNote",
+          "โหลดข้อมูลแล้ว แต่โหลด Chart.js ไม่สำเร็จ"
+        );
+
+        setText(
+          "rdGroupChartNote",
+          "โหลดข้อมูลแล้ว แต่โหลด Chart.js ไม่สำเร็จ"
+        );
       }
 
       setText("rdLastUpdated", formatDate(STATE.lastUpdated));
@@ -1553,7 +1598,7 @@
   }
 
   /* ==========================================================
-     20. LOAD dashboard.HTML
+     20. LOAD dashboard.html
   ========================================================== */
 
   async function loadDashboardHTML() {
@@ -1578,7 +1623,7 @@
       mount.innerHTML = `
         <div class="card" role="alert">
           <h3>กรุณาเปิดเว็บไซต์ผ่านเว็บเซิร์ฟเวอร์</h3>
-          <p>ไม่สามารถโหลด dashboard.HTML ผ่าน file:// ได้</p>
+          <p>ไม่สามารถโหลด dashboard.html ผ่าน file:// ได้</p>
           <p>กรุณาเปิดผ่าน GitHub Pages หรือใช้ python -m http.server 8000</p>
         </div>
       `;
@@ -1594,7 +1639,7 @@
     `;
 
     try {
-      const url = new URL("dashboard.HTML", document.baseURI);
+      const url = new URL("./dashboard.html", document.baseURI);
       url.searchParams.set("_", String(Date.now()));
 
       const response = await fetch(url.href, {
@@ -1604,18 +1649,18 @@
 
       if (!response.ok) {
         throw new Error(
-          `โหลด dashboard.HTML ไม่สำเร็จ (HTTP ${response.status})`
+          `โหลด dashboard.html ไม่สำเร็จ (HTTP ${response.status})`
         );
       }
 
       const html = await response.text();
 
       if (!html.trim()) {
-        throw new Error("ไฟล์ dashboard.HTML ไม่มีเนื้อหา");
+        throw new Error("ไฟล์ dashboard.html ไม่มีเนื้อหา");
       }
 
       if (!/id=["']reportKpiDashboard["']/.test(html)) {
-        throw new Error('ไม่พบ id="reportKpiDashboard" ใน dashboard.HTML');
+        throw new Error('ไม่พบ id="reportKpiDashboard" ใน dashboard.html');
       }
 
       mount.innerHTML = html;
@@ -1632,7 +1677,7 @@
         <div class="card" role="alert">
           <h3>ไม่สามารถโหลด Dashboard ได้</h3>
           <p>${escapeHTML(error.message || "เกิดข้อผิดพลาด")}</p>
-          <p>กรุณาตรวจสอบชื่อไฟล์ dashboard.HTML และสถานะ GitHub Pages</p>
+          <p>กรุณาตรวจสอบชื่อไฟล์ dashboard.html และสถานะ GitHub Pages</p>
           <button type="button" class="rd-btn rd-btn-light" id="rdRetryLoadHTML">
             ลองโหลดอีกครั้ง
           </button>
