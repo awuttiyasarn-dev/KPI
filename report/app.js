@@ -1,33 +1,14 @@
 (() => {
   "use strict";
 
-  const BOOTSTRAP_KEY = "__REPORT_APP_BOOTSTRAP__";
+  const APP_BOOTSTRAP_KEY = "__REPORT_APP_BOOTSTRAP__";
 
-  if (window[BOOTSTRAP_KEY]) {
+  // Guard ป้องกัน initialize ซ้ำ
+  if (window[APP_BOOTSTRAP_KEY]) {
     console.warn("[REPORT APP] App bootstrap already started.");
     return;
   }
-
-  window[BOOTSTRAP_KEY] = true;
-
-  function ensureDashboardScript() {
-    const existing = document.querySelector(
-      'script[data-report-dashboard="true"]'
-    );
-
-    if (existing) {
-      console.info("[REPORT APP] Dashboard script already loaded.");
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "./app_dashboard.js";
-    script.async = true;
-    script.defer = true;
-    script.dataset.reportDashboard = "true";
-
-    document.head.appendChild(script);
-  }
+  window[APP_BOOTSTRAP_KEY] = true;
 
   function ensureDashboardMount() {
     let mount = document.getElementById("dashboardMount");
@@ -40,6 +21,24 @@
     }
 
     return mount;
+  }
+
+  function ensureDashboardScript() {
+    const existingScript = document.querySelector(
+      'script[data-report-dashboard="true"]'
+    );
+
+    if (existingScript) {
+      console.info("[REPORT APP] Dashboard script already loaded.");
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "./app_dashboard.js";
+    script.async = true;
+    script.defer = true;
+    script.dataset.reportDashboard = "true";
+    document.head.appendChild(script);
   }
 
   function initApp() {
