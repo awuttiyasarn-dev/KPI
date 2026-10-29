@@ -800,7 +800,134 @@ async function apiRequest(action, params = {}) {
       console.warn("[REPORT CHART] ตั้งค่า style กราฟไม่สำเร็จ:", error);
     }
   }
+  const RESULT_GROUPS = {
+    group: {
+      field: "group", label: "กลุ่มตัวชี้วัด", filterId: "rdFilterGroup",
+      canvasId: "rdResultTargetChart", noteId: "rdResultChartNote", chartKey: "resultTarget"
+    },
+    excellence: {
+      field: "excellence", label: "Excellence", filterId: "rdFilterExcellence",
+      canvasId: "rdResultTargetExcellenceChart", noteId: "rdResultExcellenceNote", chartKey: "resultTargetExcellence"
+    },
+    section: {
+      field: "section", label: "หน่วยงาน", filterId: "rdFilterSection",
+      canvasId: "rdResultTargetSectionChart", noteId: "rdResultSectionNote", chartKey: "resultTargetSection"
+    }
+  };
 
+  const doughnutCenterPlugin = {
+    id: "rdDoughnutCenter",
+
+    afterDraw(chart) {
+      const area = chart.chartArea;
+      const data = chart.data.datasets[0]?.data || [];
+      if (!area || !data.length) return;
+
+      const total = data.reduce((sum, item) => sum + Number(item || 0), 0);
+      const x = (area.left + area.right) / 2;
+      const y = (area.top + area.bottom) / 2;
+      const { ctx } = chart;
+
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      ctx.fillStyle = "#172b22";
+      ctx.font = `700 28px ${CHART_FONT}`;
+      ctx.fillText(formatNumber(total, 0), x, y - 8);
+
+      ctx.fillStyle = "#829187";
+      ctx.font = `500 12px ${CHART_FONT}`;
+      ctx.fillText("ตัวชี้วัด", x, y + 16);
+
+      ctx.restore();
+    }
+  };
+
+  function destroyChart(key) {
+    const chart = STATE.charts[key];
+
+    if (chart && typeof chart.destroy === "function") {
+      chart.destroy();
+    }
+
+    STATE.charts[key] = null;
+  }
+
+  function aggregateResultTarget(rows, field) {
+    const map = new Map();
+
+    rows.forEach((row) => {
+      const result = numberValue(row.result);
+      if (result === null) return;
+
+      const name = String(row[field] ?? "").trim() || "ไม่ระบุ";
+      const target = numberValue(row.target);
+
+      if (!map.has(name)) {
+        map.set(name, {
+          name,
+          count: 0,
+          result: 0,
+          target: 0,
+          withTarget: 0
+        });
+      }
+
+      const item = map.get(name);
+      item.count += 1;
+      item.result += result;
+
+      if (target !== null) {
+        item.target += target;
+        item.withTarget += 1;
+      }
+    });
+
+    return Array.from(map.values());
+  }
+
+  function renderCharts(rows) {
+    ensureChartDefaults();
+
+    if (!window.Chart) {
+      Object.values(RESULT_GROUPS).forEach((mode) => {
+        destroyChart(mode.chartKey);
+        setText(mode.noteId, "ไม่พบ Chart.js จึงไม่สามารถแสดงกราฟได้");
+      });
+      destroyChart("group");
+
+      setText("rdGroupChartNote", "ไม่พบ Chart.js จึงไม่สามารถแสดงกราฟได้");
+
+      return false;
+    }
+
+    let result = true;
+
+    Object.keys(RESULT_GROUPS).forEach((key) => {
+      const mode = RESULT_GROUPS[key];
+
+      try {
+        renderResultTargetChart(key, rows);
+      } catch (error) {
+        console.error(`[REPORT CHART] Result chart (${key}) error:`, error);
+        destroyChart(mode.chartKey);
+        setText(mode.noteId, "สร้างกราฟผลลัพธ์ไม่สำเร็จ");
+        result = false;
+      }
+    });
+
+    try {
+      renderGroupChart(rows);
+    } catch (error) {
+      console.error("[REPORT CHART] Group chart error:", error);
+      destroyChart("group");
+      setText("rdGroupChartNote", "สร้างกราฟกลุ่มตัวชี้วัดไม่สำเร็จ");
+      result = false;
+    }
+
+    return result;
+  }
     const valueLabelsPlugin = {
     id: "rdValueLabels",
 
