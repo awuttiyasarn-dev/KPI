@@ -1525,16 +1525,31 @@ onClick(event, elements, chart) {
      20. LOAD dashboard.HTML
   ========================================================== */
 
+ 
+  /* ==========================================================
+     20. LOAD dashboard.html
+     Frontend: GitHub Pages
+  ========================================================== */
+
   async function loadDashboardHTML() {
+    // ป้องกันการโหลด HTML ซ้อนกัน
     if (STATE.loadingHTML) return;
 
     const mount = $("dashboardMount");
 
     if (!mount) {
-      console.error("[REPORT] ไม่พบ #dashboardMount ใน index.html");
+      // อาจมี dashboard อยู่ในหน้าโดยตรง
+      if (root()) {
+        initDashboard();
+      } else {
+        console.error(
+          "[REPORT] ไม่พบ #dashboardMount และ #reportKpiDashboard"
+        );
+      }
       return;
     }
 
+    // ถ้าโหลดและเริ่มต้นแล้ว ไม่ต้องโหลดซ้ำ
     if (
       mount.dataset.rdLoaded === "true" &&
       root() &&
@@ -1543,12 +1558,13 @@ onClick(event, elements, chart) {
       return;
     }
 
+    // ไม่รองรับการ fetch ไฟล์ผ่าน file://
     if (window.location.protocol === "file:") {
       mount.innerHTML = `
         <div class="card" role="alert">
           <h3>กรุณาเปิดเว็บไซต์ผ่านเว็บเซิร์ฟเวอร์</h3>
-          <p>ไม่สามารถโหลด dashboard.HTML ผ่าน file:// ได้</p>
-          <p>กรุณาเปิดผ่าน GitHub Pages หรือใช้ python -m http.server 8000</p>
+          <p>ไม่สามารถโหลด dashboard.html ผ่าน file:// ได้</p>
+          <p>ใช้ GitHub Pages หรือ python -m http.server 8000</p>
         </div>
       `;
       return;
@@ -1563,8 +1579,17 @@ onClick(event, elements, chart) {
     `;
 
     try {
-      const url = new URL("dashboard.HTML", document.baseURI);
+      // สำคัญ: ใช้ dashboard.html ตัวพิมพ์เล็ก
+      // URL นี้อิงจาก URL ของหน้าเว็บที่กำลังเปิด
+      const url = new URL(
+        "dashboard.html",
+        document.baseURI
+      );
+
+      // ป้องกันการใช้ cache ของ HTML เก่า
       url.searchParams.set("_", String(Date.now()));
+
+      console.info("[REPORT] Loading dashboard HTML:", url.href);
 
       const response = await fetch(url.href, {
         method: "GET",
@@ -1573,24 +1598,42 @@ onClick(event, elements, chart) {
 
       if (!response.ok) {
         throw new Error(
-          `โหลด dashboard.HTML ไม่สำเร็จ (HTTP ${response.status})`
+          `โหลด dashboard.html ไม่สำเร็จ ` +
+          `(HTTP ${response.status}) — ${url.pathname}`
         );
       }
 
       const html = await response.text();
 
       if (!html.trim()) {
-        throw new Error("ไฟล์ dashboard.HTML ไม่มีเนื้อหา");
+        throw new Error("ไฟล์ dashboard.html ไม่มีเนื้อหา");
       }
 
-      if (!/id=["']reportKpiDashboard["']/.test(html)) {
-        throw new Error('ไม่พบ id="reportKpiDashboard" ใน dashboard.HTML');
+      // ตรวจสอบว่าเป็นไฟล์ Dashboard ที่ถูกต้อง
+      const parser = new DOMParser();
+      const parsedHTML = parser.parseFromString(
+        html,
+        "text/html"
+      );
+
+      const dashboardRoot = parsedHTML.getElementById(
+        "reportKpiDashboard"
+      );
+
+      if (!dashboardRoot) {
+        throw new Error(
+          'ไม่พบ id="reportKpiDashboard" ใน dashboard.html'
+        );
       }
 
-      mount.innerHTML = html;
+      // แทรกเนื้อหา Dashboard ลงในหน้า
+      mount.innerHTML = dashboardRoot.outerHTML;
       mount.dataset.rdLoaded = "true";
 
+      // เริ่มต้นระบบหลังจากแทรก HTML แล้ว
       initDashboard();
+
+      console.info("[REPORT] Dashboard HTML loaded successfully");
 
     } catch (error) {
       console.error("[REPORT] Dashboard HTML error:", error);
@@ -1600,9 +1643,18 @@ onClick(event, elements, chart) {
       mount.innerHTML = `
         <div class="card" role="alert">
           <h3>ไม่สามารถโหลด Dashboard ได้</h3>
-          <p>${escapeHTML(error.message || "เกิดข้อผิดพลาด")}</p>
-          <p>กรุณาตรวจสอบชื่อไฟล์ dashboard.HTML และสถานะ GitHub Pages</p>
-          <button type="button" class="rd-btn rd-btn-light" id="rdRetryLoadHTML">
+          <p>${escapeHTML(
+            error.message || "เกิดข้อผิดพลาด"
+          )}</p>
+          <p>
+            ตรวจสอบตำแหน่งไฟล์ dashboard.html
+            และการเผยแพร่ GitHub Pages
+          </p>
+          <button
+            type="button"
+            class="rd-btn rd-btn-light"
+            id="rdRetryLoadHTML"
+          >
             ลองโหลดอีกครั้ง
           </button>
         </div>
@@ -1617,6 +1669,7 @@ onClick(event, elements, chart) {
       STATE.loadingHTML = false;
     }
   }
+
 
   /* ==========================================================
      21. STARTUP
