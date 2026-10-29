@@ -801,7 +801,7 @@ async function apiRequest(action, params = {}) {
     }
   }
 
-  const valueLabelsPlugin = {
+    const valueLabelsPlugin = {
     id: "rdValueLabels",
 
     afterDatasetsDraw(chart) {
@@ -816,13 +816,17 @@ async function apiRequest(action, params = {}) {
         const meta = chart.getDatasetMeta(datasetIndex);
         if (meta.hidden) return;
 
-        ctx.fillStyle = datasetIndex === 0 ? "#146c4a" : "#4f7fb5";
+        ctx.fillStyle = datasetIndex === 0 ? "#146c4a" : "#5b86b8";
 
         meta.data.forEach((bar, index) => {
           const value = dataset.data[index];
           if (value === null || value === undefined) return;
 
-          ctx.fillText(formatNumber(value, value % 1 ? 1 : 0), bar.x + 7, bar.y);
+          ctx.fillText(
+            formatNumber(value, value % 1 ? 1 : 0),
+            bar.x + 8,
+            bar.y
+          );
         });
       });
 
@@ -830,232 +834,168 @@ async function apiRequest(action, params = {}) {
     }
   };
 
-  const doughnutCenterPlugin = {
-    id: "rdDoughnutCenter",
-
-    afterDraw(chart) {
+  function barGradient(from, to) {
+    return (context) => {
+      const chart = context.chart;
       const area = chart.chartArea;
-      const data = chart.data.datasets[0]?.data || [];
-      if (!area || !data.length) return;
+      if (!area) return to;
 
-      const total = data.reduce((sum, item) => sum + Number(item || 0), 0);
-      const x = (area.left + area.right) / 2;
-      const y = (area.top + area.bottom) / 2;
-      const { ctx } = chart;
-
-      ctx.save();
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-
-      ctx.fillStyle = "#172b22";
-      ctx.font = `700 28px ${CHART_FONT}`;
-      ctx.fillText(formatNumber(total, 0), x, y - 8);
-
-      ctx.fillStyle = "#829187";
-      ctx.font = `500 12px ${CHART_FONT}`;
-      ctx.fillText("ตัวชี้วัด", x, y + 16);
-
-      ctx.restore();
-    }
-  };
-
-  function destroyChart(key) {
-    const chart = STATE.charts[key];
-
-    if (chart && typeof chart.destroy === "function") {
-      chart.destroy();
-    }
-
-    STATE.charts[key] = null;
+      const gradient = chart.ctx.createLinearGradient(area.left, 0, area.right, 0);
+      gradient.addColorStop(0, from);
+      gradient.addColorStop(1, to);
+      return gradient;
+    };
   }
 
-  function renderCharts(rows) {
-    ensureChartDefaults();
-
-    if (!window.Chart) {
-      Object.values(RESULT_GROUPS).forEach((mode) => {
-        destroyChart(mode.chartKey);
-        setText(mode.noteId, "ไม่พบ Chart.js จึงไม่สามารถแสดงกราฟได้");
-      });
-      destroyChart("group");
-
-      setText("rdGroupChartNote", "ไม่พบ Chart.js จึงไม่สามารถแสดงกราฟได้");
-
-      return false;
-    }
-
-    let result = true;
-
-    Object.keys(RESULT_GROUPS).forEach((key) => {
-      const mode = RESULT_GROUPS[key];
-
-      try {
-        renderResultTargetChart(key, rows);
-      } catch (error) {
-        console.error(`[REPORT CHART] Result chart (${key}) error:`, error);
-        destroyChart(mode.chartKey);
-        setText(mode.noteId, "สร้างกราฟผลลัพธ์ไม่สำเร็จ");
-        result = false;
-      }
-    });
-
-    try {
-      renderGroupChart(rows);
-    } catch (error) {
-      console.error("[REPORT CHART] Group chart error:", error);
-      destroyChart("group");
-      setText("rdGroupChartNote", "สร้างกราฟกลุ่มตัวชี้วัดไม่สำเร็จ");
-      result = false;
-    }
-
-    return result;
+  function truncateLabel(text, max = 28) {
+    const value = String(text ?? "");
+    return value.length > max ? `${value.slice(0, max - 1)}…` : value;
   }
 
-  const RESULT_GROUPS = {
-    group: {
-      field: "group", label: "กลุ่มตัวชี้วัด", filterId: "rdFilterGroup",
-      canvasId: "rdResultTargetChart", noteId: "rdResultChartNote", chartKey: "resultTarget"
-    },
-    excellence: {
-      field: "excellence", label: "Excellence", filterId: "rdFilterExcellence",
-      canvasId: "rdResultTargetExcellenceChart", noteId: "rdResultExcellenceNote", chartKey: "resultTargetExcellence"
-    },
-    section: {
-      field: "section", label: "หน่วยงาน", filterId: "rdFilterSection",
-      canvasId: "rdResultTargetSectionChart", noteId: "rdResultSectionNote", chartKey: "resultTargetSection"
+  function renderResultTargetChart(key, rows) {
+    const mode = RESULT_GROUPS[key];
+    if (!mode) return;
+
+    const canvas = $(mode.canvasId);
+    if (!canvas || !window.Chart) return;
+
+    destroyChart(mode.chartKey);
+
+    const items = aggregateResultTarget(rows, mode.field)
+      .map((item) => ({
+        name: item.name,
+        result: item.count ? item.result / item.count : 0,
+        target: item.withTarget ? item.target / item.withTarget : 0
+      }))
+      .sort((a, b) => b.result - a.result)
+      .slice(0, CONFIG.RESULT_CHART_LIMIT);
+
+    if (!items.length) {
+      setText(mode.noteId, "ไม่พบข้อมูลผลลัพธ์และเป้าหมายสำหรับแสดงกราฟ");
+      return;
     }
-  };
 
-  function aggregateResultTarget(rows, field) {
-    const map = new Map();
+    // ปรับความสูงตามจำนวนแท่ง เพื่อไม่ให้แท่งบีบกัน
+    const box = canvas.parentElement;
+    if (box) box.style.height = `${Math.max(280, items.length * 58 + 90)}px`;
 
-    rows.forEach((row) => {
-      const result = numberValue(row.result);
-      if (result === null) return;
+    const barStyle = {
+      borderRadius: 8,
+      borderSkipped: false,
+      barPercentage: 0.85,
+      categoryPercentage: 0.72,
+      maxBarThickness: 22
+    };
 
-      const name = String(row[field] ?? "").trim() || "ไม่ระบุ";
-      const target = numberValue(row.target);
+    STATE.charts[mode.chartKey] = new window.Chart(canvas, {
+      type: "bar",
+      plugins: [valueLabelsPlugin],
 
-      if (!map.has(name)) {
-        map.set(name, {
-          name,
-          count: 0,
-          result: 0,
-          target: 0,
-          pairResult: 0,
-          pairTarget: 0,
-          withTarget: 0
-        });
-      }
+      data: {
+        labels: items.map((i) => i.name),
+        datasets: [
+          {
+            label: "ผลลัพธ์เฉลี่ย",
+            data: items.map((i) => i.result),
+            backgroundColor: barGradient("#7dd9b0", "#1a8f63"),
+            ...barStyle
+          },
+          {
+            label: "เป้าหมายเฉลี่ย",
+            data: items.map((i) => i.target),
+            backgroundColor: barGradient("#d6e7fa", "#86b4e8"),
+            ...barStyle
+          }
+        ]
+      },
 
-      const item = map.get(name);
-      item.count += 1;
-      item.result += result;
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: { padding: { top: 4, right: 52, bottom: 4, left: 4 } },
+        animation: { duration: 700, easing: "easeOutQuart" },
+        interaction: { mode: "index", intersect: false },
 
-      if (target !== null) {
-        item.target += target;
-        item.withTarget += 1;
-        item.pairResult += result;
-        item.pairTarget += target;
-      }
-    });
+        plugins: {
+          legend: {
+            position: "top",
+            align: "end",
+            labels: {
+              usePointStyle: true,
+              pointStyle: "rectRounded",
+              boxWidth: 10,
+              boxHeight: 10,
+              padding: 16
+            }
+          },
 
-    return Array.from(map.values()).sort(
-      (a, b) => b.count - a.count || a.name.localeCompare(b.name, "th")
-    );
-  }
-
-function renderResultTargetChart(key, rows) {
-  const mode = RESULT_GROUPS[key];
-  if (!mode) return;
-
-  const canvas = $(mode.canvasId);
-  if (!canvas || !window.Chart) return;
-
-  destroyChart(mode.chartKey);
-
-  const items = aggregateResultTarget(rows, mode.field)
-    .slice(0, CONFIG.RESULT_CHART_LIMIT)
-    .map((item) => ({
-      name: item.name,
-      result: item.count ? item.result / item.count : 0,
-      target: item.withTarget ? item.target / item.withTarget : 0
-    }));
-
-  if (!items.length) {
-    setText(mode.noteId, "ไม่พบข้อมูลผลลัพธ์และเป้าหมายสำหรับแสดงกราฟ");
-    return;
-  }
-
-  STATE.charts[mode.chartKey] = new window.Chart(canvas, {
-    type: "bar",
-    plugins: [valueLabelsPlugin],
-    data: {
-      labels: items.map((i) => i.name),
-      datasets: [
-        {
-          label: "ผลลัพธ์เฉลี่ย",
-          data: items.map((i) => i.result),
-          backgroundColor: CONFIG.COLORS.primary,
-          borderRadius: 6
-        },
-        {
-          label: "เป้าหมายเฉลี่ย",
-          data: items.map((i) => i.target),
-          backgroundColor: CONFIG.COLORS.secondary,
-          borderRadius: 6
-        }
-      ]
-    },
-    options: {
-      indexAxis: "y",
-      responsive: true,
-      maintainAspectRatio: false,
-      layout: { padding: { right: 40 } },
-      interaction: { mode: "index", intersect: false },
-      plugins: {
-        legend: { position: "top" },
-        tooltip: {
-          callbacks: {
-            label(ctx) {
-              return `${ctx.dataset.label}: ${formatNumber(ctx.parsed.x)}`;
+          tooltip: {
+            callbacks: {
+              title(list) {
+                return list[0]?.label || "";
+              },
+              label(ctx) {
+                return `${ctx.dataset.label}: ${formatNumber(ctx.parsed.x)}`;
+              },
+              footer(list) {
+                const item = items[list[0]?.dataIndex];
+                if (!item || !item.target) return "";
+                return `บรรลุเป้าหมาย ${formatNumber((item.result / item.target) * 100, 1)}%`;
+              }
             }
           }
+        },
+
+        scales: {
+          x: {
+            beginAtZero: true,
+            grid: { color: "rgba(148, 163, 184, 0.18)" },
+            border: { display: false, dash: [4, 4] },
+            ticks: { padding: 6 }
+          },
+          y: {
+            grid: { display: false },
+            border: { display: false },
+            ticks: {
+              autoSkip: false,
+              padding: 8,
+              callback(value) {
+                return truncateLabel(this.getLabelForValue(value));
+              }
+            }
+          }
+        },
+
+        onHover(event, elements) {
+          const el = event.native?.target;
+          if (el) el.style.cursor = elements.length ? "pointer" : "default";
+        },
+
+        onClick(_event, elements) {
+          if (!elements.length) return;
+
+          const selected = items[elements[0].index];
+          const filter = $(mode.filterId);
+          if (!selected || !filter) return;
+
+          const hasOption = Array.from(filter.options).some(
+            (o) => o.value === selected.name
+          );
+          if (!hasOption) return;
+
+          filter.value = selected.name;
+          setTimeout(applyFilters, 0);
         }
-      },
-      scales: {
-        x: { beginAtZero: true },
-        y: { ticks: { autoSkip: false } }
-      },
-      onHover(event, elements) {
-        const el = event.native?.target;
-        if (el) el.style.cursor = elements.length ? "pointer" : "default";
-      },
-      onClick(_event, elements) {
-        if (!elements.length) return;
-
-        const selected = items[elements[0].index];
-        const filter = $(mode.filterId);
-        if (!selected || !filter) return;
-
-        const hasOption = Array.from(filter.options).some(
-          (o) => o.value === selected.name
-        );
-        if (!hasOption) return;
-
-        filter.value = selected.name;
-        applyFilters();
       }
-    }
-  });
+    });
 
-  setText(
-    mode.noteId,
-    `แสดงผลลัพธ์เฉลี่ยเทียบเป้าหมายเฉลี่ยตาม${mode.label} · คลิกแท่งเพื่อกรอง`
-  );
-}
-
-  function renderGroupChart(rows) {
+    setText(
+      mode.noteId,
+      `เฉลี่ยผลลัพธ์เทียบเป้าหมายตาม${mode.label} · คลิกแท่งเพื่อกรอง`
+    );
+  }
+    function renderGroupChart(rows) {
     const canvas = $("rdGroupChart");
     if (!canvas) return;
 
@@ -1079,6 +1019,8 @@ function renderResultTargetChart(key, rows) {
 
     setText("rdGroupChartNote", `แสดง ${groups.length} กลุ่มตัวชี้วัด`);
 
+    const wide = window.innerWidth > 720;
+
     STATE.charts.group = new window.Chart(canvas, {
       type: "doughnut",
       plugins: [doughnutCenterPlugin],
@@ -1097,24 +1039,38 @@ function renderResultTargetChart(key, rows) {
           ],
 
           borderColor: "#ffffff",
-          borderWidth: 3,
-          hoverOffset: 5
+          borderWidth: 2,
+          borderRadius: 8,
+          spacing: 3,
+          hoverOffset: 8
         }]
       },
 
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        cutout: "70%",
+        cutout: "68%",
+        layout: { padding: 8 },
+        animation: { animateRotate: true, duration: 800, easing: "easeOutQuart" },
 
         plugins: {
           legend: {
-            position: "bottom",
+            position: wide ? "right" : "bottom",
             labels: {
               usePointStyle: true,
               pointStyle: "circle",
               boxWidth: 8,
-              padding: 14
+              padding: 14,
+              generateLabels(chart) {
+                const base = window.Chart.overrides.doughnut.plugins.legend.labels
+                  .generateLabels(chart);
+
+                base.forEach((item) => {
+                  item.text = truncateLabel(item.text, 30);
+                });
+
+                return base;
+              }
             }
           },
 
@@ -1132,7 +1088,7 @@ function renderResultTargetChart(key, rows) {
                   ? ((value / total) * 100).toFixed(1)
                   : "0.0";
 
-                return `${context.label}: ${formatNumber(value, 0)} รายการ (${percent}%)`;
+                return `${formatNumber(value, 0)} รายการ (${percent}%)`;
               }
             }
           }
@@ -1140,7 +1096,6 @@ function renderResultTargetChart(key, rows) {
       }
     });
   }
-
   /* ==========================================================
      14. TABLE
   ========================================================== */
