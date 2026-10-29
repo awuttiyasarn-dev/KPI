@@ -2,7 +2,7 @@
  * REPORT KPI DASHBOARD
  * File       : app_dashboard.js
  * Frontend   : GitHub Pages
- * HTML       : dashboard.html
+ * HTML       : dashboard.HTML
  * API        : Google Apps Script Web App
  * Sheet      : REPORT_02
  * ============================================================ */
@@ -28,12 +28,10 @@
     SHEET_NAME: "REPORT_02",
     ACCESS_KEY: "",
 
-    RESULT_CHART_LIMIT: 25,
-
     PAGE_SIZE: 100,
     MAX_PAGES: 100,
 
-    API_TIMEOUT: 60000,
+    API_TIMEOUT: 25000,
     CHART_TIMEOUT: 12000,
 
     CHART_JS_URL:
@@ -95,9 +93,6 @@
     pageSize: 25,
 
     charts: {
-      resultTarget: null,
-      resultTargetExcellence: null,
-      resultTargetSection: null,
       group: null
     },
 
@@ -214,7 +209,9 @@
     const countEl = $("rdLoadingCount");
 
     if (!panel || !title || !detail || !countEl) {
-      console.warn("[REPORT] Loading status elements are missing.");
+      console.warn(
+        "[REPORT] Loading status elements are missing."
+      );
       return;
     }
 
@@ -261,6 +258,7 @@
     }
   }
 
+  // ใช้ฟังก์ชันนี้หลังโหลดเสร็จ เพื่อให้ข้อความถูกอัปเดตตรง ๆ
   function setFinalLoadingStatus(total, message = "") {
     setLoadingStatus(
       "success",
@@ -316,103 +314,91 @@
      7. API REQUEST
   ========================================================== */
 
-  
-async function apiRequest(action, params = {}) {
-  const controller = new AbortController();
-  let timedOut = false;
+  async function apiRequest(action, params = {}) {
+    const controller = new AbortController();
 
-  const timeoutId = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, CONFIG.API_TIMEOUT);
-
-  try {
-    console.info("[REPORT API] Request:", action, params);
-    console.info("[REPORT API] URL:", CONFIG.API_URL);
-    console.info(
-      "[REPORT API] Timeout:",
-      `${CONFIG.API_TIMEOUT / 1000} seconds`
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      CONFIG.API_TIMEOUT
     );
-
-    const response = await fetch(CONFIG.API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8"
-      },
-      body: JSON.stringify({
-        action,
-        key: CONFIG.ACCESS_KEY,
-        params
-      }),
-      redirect: "follow",
-      cache: "no-store",
-      signal: controller.signal
-    });
-
-    const responseText = await response.text();
-
-    console.info("[REPORT API] HTTP:", response.status);
-    console.info(
-      "[REPORT API] Response preview:",
-      responseText.slice(0, 500)
-    );
-
-    if (!response.ok) {
-      throw new Error(`API ตอบกลับ HTTP ${response.status}`);
-    }
-
-    let data;
 
     try {
-      data = JSON.parse(responseText);
-    } catch {
-      throw new Error(
-        "API ส่งข้อมูลกลับมาไม่ใช่ JSON กรุณาตรวจสอบ Code.gs"
+      console.info("[REPORT API] Request:", action, params);
+
+      const response = await fetch(CONFIG.API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8"
+        },
+        body: JSON.stringify({
+          action,
+          key: CONFIG.ACCESS_KEY,
+          params
+        }),
+        redirect: "follow",
+        cache: "no-store",
+        signal: controller.signal
+      });
+
+      const responseText = await response.text();
+
+      console.info("[REPORT API] HTTP:", response.status);
+      console.info(
+        "[REPORT API] Response preview:",
+        responseText.slice(0, 500)
       );
+
+      if (!response.ok) {
+        throw new Error(`API ตอบกลับ HTTP ${response.status}`);
+      }
+
+      let data;
+
+      try {
+        data = JSON.parse(responseText);
+      } catch (_) {
+        throw new Error(
+          "API ส่งข้อมูลกลับมาไม่ใช่ JSON กรุณาตรวจสอบ Code.gs"
+        );
+      }
+
+      if (!data || typeof data !== "object") {
+        throw new Error("รูปแบบข้อมูลจาก API ไม่ถูกต้อง");
+      }
+
+      if (data.ok === false || data.success === false || data.error) {
+        throw new Error(
+          String(
+            data.message ||
+            data.error ||
+            "Google Apps Script ปฏิเสธคำขอ"
+          )
+        );
+      }
+
+      return data;
+
+    } catch (error) {
+      console.error("[REPORT API] Error:", error);
+
+      if (error.name === "AbortError") {
+        throw new Error(
+          `API ไม่ตอบกลับภายใน ${CONFIG.API_TIMEOUT / 1000} วินาที`
+        );
+      }
+
+      if (error instanceof TypeError) {
+        throw new Error(
+          "เรียก Google Apps Script ไม่สำเร็จ กรุณาตรวจสอบ URL และสิทธิ์ Web App"
+        );
+      }
+
+      throw error;
+
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    if (!data || typeof data !== "object") {
-      throw new Error("รูปแบบข้อมูลจาก API ไม่ถูกต้อง");
-    }
-
-    if (data.ok === false || data.success === false || data.error) {
-      throw new Error(
-        String(
-          data.message ||
-          data.error ||
-          "Google Apps Script ปฏิเสธคำขอ"
-        )
-      );
-    }
-
-    return data;
-
-  } catch (error) {
-    console.error("[REPORT API] Error:", error);
-
-    if (error.name === "AbortError" && timedOut) {
-      throw new Error(
-        `API ใช้เวลาตอบกลับเกิน ${CONFIG.API_TIMEOUT / 1000} วินาที`
-      );
-    }
-
-    if (error.name === "AbortError") {
-      throw new Error("คำขอ API ถูกยกเลิกก่อนรับข้อมูลครบ");
-    }
-
-    if (error instanceof TypeError) {
-      throw new Error(
-        "เชื่อมต่อ Google Apps Script ไม่สำเร็จ กรุณาตรวจสอบ URL, สิทธิ์ และเครือข่าย"
-      );
-    }
-
-    throw error;
-
-  } finally {
-    clearTimeout(timeoutId);
   }
-}
-
 
   /* ==========================================================
      8. RESPONSE NORMALIZATION
@@ -629,6 +615,7 @@ async function apiRequest(action, params = {}) {
         script.async = true;
         script.dataset.reportChartjs = "true";
       } else {
+        // สคริปต์เดิมอาจโหลดเสร็จหรือผิดพลาดไปแล้ว
         script.remove();
         script = document.createElement("script");
         script.src = CONFIG.CHART_JS_URL;
@@ -779,6 +766,7 @@ async function apiRequest(action, params = {}) {
 
     C.__rdStyled = true;
 
+    // ตั้งค่า style กลาง — ถ้าเวอร์ชัน Chart.js ไม่รองรับบางค่า ให้ข้ามไป ไม่ให้กราฟพัง
     try {
       C.defaults.font.family = CHART_FONT;
       C.defaults.font.size = 12;
@@ -800,21 +788,8 @@ async function apiRequest(action, params = {}) {
       console.warn("[REPORT CHART] ตั้งค่า style กราฟไม่สำเร็จ:", error);
     }
   }
-  const RESULT_GROUPS = {
-    group: {
-      field: "group", label: "กลุ่มตัวชี้วัด", filterId: "rdFilterGroup",
-      canvasId: "rdResultTargetChart", noteId: "rdResultChartNote", chartKey: "resultTarget"
-    },
-    excellence: {
-      field: "excellence", label: "Excellence", filterId: "rdFilterExcellence",
-      canvasId: "rdResultTargetExcellenceChart", noteId: "rdResultExcellenceNote", chartKey: "resultTargetExcellence"
-    },
-    section: {
-      field: "section", label: "หน่วยงาน", filterId: "rdFilterSection",
-      canvasId: "rdResultTargetSectionChart", noteId: "rdResultSectionNote", chartKey: "resultTargetSection"
-    }
-  };
 
+  // แสดงจำนวนรวมตรงกลางกราฟโดนัท
   const doughnutCenterPlugin = {
     id: "rdDoughnutCenter",
 
@@ -854,47 +829,10 @@ async function apiRequest(action, params = {}) {
     STATE.charts[key] = null;
   }
 
-  function aggregateResultTarget(rows, field) {
-    const map = new Map();
-
-    rows.forEach((row) => {
-      const result = numberValue(row.result);
-      if (result === null) return;
-
-      const name = String(row[field] ?? "").trim() || "ไม่ระบุ";
-      const target = numberValue(row.target);
-
-      if (!map.has(name)) {
-        map.set(name, {
-          name,
-          count: 0,
-          result: 0,
-          target: 0,
-          withTarget: 0
-        });
-      }
-
-      const item = map.get(name);
-      item.count += 1;
-      item.result += result;
-
-      if (target !== null) {
-        item.target += target;
-        item.withTarget += 1;
-      }
-    });
-
-    return Array.from(map.values());
-  }
-
   function renderCharts(rows) {
     ensureChartDefaults();
 
     if (!window.Chart) {
-      Object.values(RESULT_GROUPS).forEach((mode) => {
-        destroyChart(mode.chartKey);
-        setText(mode.noteId, "ไม่พบ Chart.js จึงไม่สามารถแสดงกราฟได้");
-      });
       destroyChart("group");
 
       setText("rdGroupChartNote", "ไม่พบ Chart.js จึงไม่สามารถแสดงกราฟได้");
@@ -904,325 +842,310 @@ async function apiRequest(action, params = {}) {
 
     let result = true;
 
-    Object.keys(RESULT_GROUPS).forEach((key) => {
-      const mode = RESULT_GROUPS[key];
-
-      try {
-        renderResultTargetChart(key, rows);
-      } catch (error) {
-        console.error(`[REPORT CHART] Result chart (${key}) error:`, error);
-        destroyChart(mode.chartKey);
-        setText(mode.noteId, "สร้างกราฟผลลัพธ์ไม่สำเร็จ");
-        result = false;
-      }
-    });
-
     try {
       renderGroupChart(rows);
     } catch (error) {
       console.error("[REPORT CHART] Group chart error:", error);
       destroyChart("group");
-      setText("rdGroupChartNote", "สร้างกราฟกลุ่มตัวชี้วัดไม่สำเร็จ");
+      setText("rdGroupChartNote", "สร้างกราฟจำนวนตัวชี้วัดตามกลุ่มไม่สำเร็จ");
       result = false;
     }
 
     return result;
   }
-    const valueLabelsPlugin = {
-    id: "rdValueLabels",
 
-    afterDatasetsDraw(chart) {
-      const { ctx } = chart;
+  const GROUP_EMPTY_LABEL = "ไม่ระบุกลุ่ม";
+  const GROUP_OTHER_LABEL = "อื่น ๆ";
+  const GROUP_MAX_SLICES = 12;
 
-      ctx.save();
-      ctx.font = `600 11px ${CHART_FONT}`;
-      ctx.textBaseline = "middle";
-      ctx.textAlign = "left";
+  const GROUP_PALETTE = [
+    "#1a8f63", "#4f8fd6", "#14a3a0", "#e3a634",
+    "#8b6bd6", "#d9628b", "#3aa0bd", "#7bb342",
+    "#e07b39", "#6b7a8f", "#2fbf9a", "#a779d6"
+  ];
 
-      chart.data.datasets.forEach((dataset, datasetIndex) => {
-        const meta = chart.getDatasetMeta(datasetIndex);
-        if (meta.hidden) return;
+/* ==========================================================
+   EXCELLENCE SUMMARY — นับจากคอลัมน์ Summary
+========================================================== */
 
-        ctx.fillStyle = datasetIndex === 0 ? "#146c4a" : "#5b86b8";
+function renderExcellenceSummary(rows, selectedGroup, groupMap = null) {
+  const container = $("rdExcellenceSummary");
+  if (!container) return;
 
-        meta.data.forEach((bar, index) => {
-          const value = dataset.data[index];
-          if (value === null || value === undefined) return;
+  const selectedGroups = groupMap?.get(selectedGroup) || [selectedGroup];
 
-          ctx.fillText(
-            formatNumber(value, value % 1 ? 1 : 0),
-            bar.x + 8,
-            bar.y
-          );
-        });
-      });
+  const selectedRows = rows.filter((row) => {
+    const group = normalizeText(row.group) || GROUP_EMPTY_LABEL;
+    return selectedGroups.includes(group);
+  });
 
-      ctx.restore();
-    }
-  };
+  // นับ Summary แยกตาม Excellence และข้อความ Summary
+  const counts = new Map();
+  let totalSummary = 0;
+  let rowsWithoutSummary = 0;
 
-  function barGradient(from, to) {
-    return (context) => {
-      const chart = context.chart;
-      const area = chart.chartArea;
-      if (!area) return to;
+  selectedRows.forEach((row) => {
+    const excellence = normalizeText(row.excellence) || "ไม่ระบุ Excellence";
+    const summary = normalizeText(row.summary);
 
-      const gradient = chart.ctx.createLinearGradient(area.left, 0, area.right, 0);
-      gradient.addColorStop(0, from);
-      gradient.addColorStop(1, to);
-      return gradient;
-    };
-  }
-
-  function truncateLabel(text, max = 28) {
-    const value = String(text ?? "");
-    return value.length > max ? `${value.slice(0, max - 1)}…` : value;
-  }
-
-  function renderResultTargetChart(key, rows) {
-    const mode = RESULT_GROUPS[key];
-    if (!mode) return;
-
-    const canvas = $(mode.canvasId);
-    if (!canvas || !window.Chart) return;
-
-    destroyChart(mode.chartKey);
-
-    const items = aggregateResultTarget(rows, mode.field)
-      .map((item) => ({
-        name: item.name,
-        result: item.count ? item.result / item.count : 0,
-        target: item.withTarget ? item.target / item.withTarget : 0
-      }))
-      .sort((a, b) => b.result - a.result)
-      .slice(0, CONFIG.RESULT_CHART_LIMIT);
-
-    if (!items.length) {
-      setText(mode.noteId, "ไม่พบข้อมูลผลลัพธ์และเป้าหมายสำหรับแสดงกราฟ");
+    if (!summary) {
+      rowsWithoutSummary++;
       return;
     }
 
-    // ปรับความสูงตามจำนวนแท่ง เพื่อไม่ให้แท่งบีบกัน
-    const box = canvas.parentElement;
-    if (box) box.style.height = `${Math.max(280, items.length * 58 + 90)}px`;
+    if (!counts.has(excellence)) {
+      counts.set(excellence, new Map());
+    }
 
-    const barStyle = {
-      borderRadius: 8,
-      borderSkipped: false,
-      barPercentage: 0.85,
-      categoryPercentage: 0.72,
-      maxBarThickness: 22
-    };
+    const summaryMap = counts.get(excellence);
 
-    STATE.charts[mode.chartKey] = new window.Chart(canvas, {
-      type: "bar",
-      plugins: [valueLabelsPlugin],
+    summaryMap.set(
+      summary,
+      (summaryMap.get(summary) || 0) + 1
+    );
 
-      data: {
-        labels: items.map((i) => i.name),
-        datasets: [
-          {
-            label: "ผลลัพธ์เฉลี่ย",
-            data: items.map((i) => i.result),
-            backgroundColor: barGradient("#7dd9b0", "#1a8f63"),
-            ...barStyle
-          },
-          {
-            label: "เป้าหมายเฉลี่ย",
-            data: items.map((i) => i.target),
-            backgroundColor: barGradient("#d6e7fa", "#86b4e8"),
-            ...barStyle
-          }
-        ]
-      },
+    totalSummary++;
+  });
 
-      options: {
-        indexAxis: "y",
-        responsive: true,
-        maintainAspectRatio: false,
-        layout: { padding: { top: 4, right: 52, bottom: 4, left: 4 } },
-        animation: { duration: 700, easing: "easeOutQuart" },
-        interaction: { mode: "index", intersect: false },
+  const excellenceEntries = [...counts.entries()].sort(
+    (a, b) => {
+      const countA = [...a[1].values()].reduce((sum, n) => sum + n, 0);
+      const countB = [...b[1].values()].reduce((sum, n) => sum + n, 0);
 
-        plugins: {
-          legend: {
-            position: "top",
-            align: "end",
-            labels: {
-              usePointStyle: true,
-              pointStyle: "rectRounded",
-              boxWidth: 10,
-              boxHeight: 10,
-              padding: 16
-            }
-          },
+      return countB - countA || a[0].localeCompare(b[0], "th");
+    }
+  );
 
-          tooltip: {
-            callbacks: {
-              title(list) {
-                return list[0]?.label || "";
-              },
-              label(ctx) {
-                return `${ctx.dataset.label}: ${formatNumber(ctx.parsed.x)}`;
-              },
-              footer(list) {
-                const item = items[list[0]?.dataIndex];
-                if (!item || !item.target) return "";
-                return `บรรลุเป้าหมาย ${formatNumber((item.result / item.target) * 100, 1)}%`;
-              }
-            }
-          }
-        },
+  const heading = selectedGroups.length > 1
+    ? `สรุป Excellence: ${selectedGroup}`
+    : `สรุป Excellence: ${selectedGroup}`;
 
-        scales: {
-          x: {
-            beginAtZero: true,
-            grid: { color: "rgba(148, 163, 184, 0.18)" },
-            border: { display: false, dash: [4, 4] },
-            ticks: { padding: 6 }
-          },
-          y: {
-            grid: { display: false },
-            border: { display: false },
-            ticks: {
-              autoSkip: false,
-              padding: 8,
-              callback(value) {
-                return truncateLabel(this.getLabelForValue(value));
-              }
-            }
-          }
-        },
+  if (!totalSummary) {
+    container.innerHTML = `
+      <div class="rd-excellence-header">
+        <h3>${escapeHTML(heading)}</h3>
+        <p>ตัวชี้วัดที่ตรงกับกลุ่ม: ${formatNumber(selectedRows.length, 0)} รายการ</p>
+      </div>
+      <div class="rd-excellence-empty">
+        ไม่พบข้อมูล Summary ที่มีค่าในกลุ่มนี้
+      </div>
+    `;
+    return;
+  }
 
-        onHover(event, elements) {
-          const el = event.native?.target;
-          if (el) el.style.cursor = elements.length ? "pointer" : "default";
-        },
+  const detailHTML = excellenceEntries.map(([excellence, summaryMap]) => {
+    const excellenceTotal = [...summaryMap.values()]
+      .reduce((sum, n) => sum + n, 0);
 
-        onClick(_event, elements) {
-          if (!elements.length) return;
+    const summaryHTML = [...summaryMap.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "th"))
+      .map(([summary, count]) => {
+        const percent = count / totalSummary * 100;
 
-          const selected = items[elements[0].index];
-          const filter = $(mode.filterId);
-          if (!selected || !filter) return;
+        return `
+          <div class="rd-excellence-item">
+            <span class="rd-excellence-summary-text">
+              ${escapeHTML(summary)}
+            </span>
+            <strong>${formatNumber(count, 0)}</strong>
+            <small>${formatNumber(percent, 1)}%</small>
+          </div>
+        `;
+      }).join("");
 
-          const hasOption = Array.from(filter.options).some(
-            (o) => o.value === selected.name
-          );
-          if (!hasOption) return;
+    return `
+      <article class="rd-excellence-card">
+        <div class="rd-excellence-card-header">
+          <div>
+            <h4>${escapeHTML(excellence)}</h4>
+            <small>จำนวน Summary ${formatNumber(excellenceTotal, 0)} รายการ</small>
+          </div>
+          <strong>${formatNumber(excellenceTotal / totalSummary * 100, 1)}%</strong>
+        </div>
+        <div class="rd-excellence-list">
+          ${summaryHTML}
+        </div>
+      </article>
+    `;
+  }).join("");
 
-          filter.value = selected.name;
-          setTimeout(applyFilters, 0);
-        }
-      }
-    });
+  container.innerHTML = `
+    <div class="rd-excellence-header">
+      <h3>${escapeHTML(heading)}</h3>
+      <p>จำแนกตาม Excellence และนับรายการจาก Summary</p>
+    </div>
 
-    setText(
-      mode.noteId,
-      `เฉลี่ยผลลัพธ์เทียบเป้าหมายตาม${mode.label} · คลิกแท่งเพื่อกรอง`
+    <div class="rd-excellence-kpis">
+      <div class="rd-excellence-stat">
+        <span>ตัวชี้วัดในกลุ่ม</span>
+        <strong>${formatNumber(selectedRows.length, 0)}</strong>
+      </div>
+      <div class="rd-excellence-stat">
+        <span>รายการ Summary ที่นับได้</span>
+        <strong>${formatNumber(totalSummary, 0)}</strong>
+      </div>
+      <div class="rd-excellence-stat">
+        <span>รายการไม่มี Summary</span>
+        <strong>${formatNumber(rowsWithoutSummary, 0)}</strong>
+      </div>
+    </div>
+
+    <div class="rd-excellence-cards">
+      ${detailHTML}
+    </div>
+  `;
+}
+
+/* ==========================================================
+   NAVIGATE TO EXCELLENCE.HTML
+========================================================== */
+
+function openExcellencePage(selectedGroup) {
+  const url = new URL("Excellence.html", document.baseURI);
+
+  // ส่งชื่อกลุ่ม KPI ที่คลิกจากกราฟ
+  url.searchParams.set("group", selectedGroup);
+
+  // ส่งชื่อ Excellence สำหรับใช้กรองข้อมูลในหน้าปลายทาง
+  url.searchParams.set("excellence", selectedGroup);
+
+  window.location.href = url.href;
+}
+
+  // จำนวนตัวชี้วัดตามกลุ่ม (คอลัมน์ kpi_Group_Des)
+  
+function renderGroupChart(rows) {
+  const canvas = $("rdGroupChart");
+  if (!canvas) return;
+
+  destroyChart("group");
+
+  const counts = new Map();
+
+  rows.forEach((row) => {
+    const label = normalizeText(row.group) || GROUP_EMPTY_LABEL;
+    counts.set(label, (counts.get(label) || 0) + 1);
+  });
+
+  if (!counts.size) {
+    setText("rdGroupChartNote", "ไม่มีข้อมูลกลุ่มตัวชี้วัดสำหรับแสดงกราฟ");
+
+    const summary = $("rdExcellenceSummary");
+    if (summary) {
+      summary.innerHTML = `
+        <div class="rd-excellence-empty">
+          ไม่มีข้อมูลกลุ่มตัวชี้วัดสำหรับสรุป Excellence
+        </div>
+      `;
+    }
+    return;
+  }
+
+  let entries = [...counts.entries()].sort(
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "th")
+  );
+
+  const groupMap = new Map();
+
+  entries.forEach(([label]) => {
+    groupMap.set(label, [label]);
+  });
+
+  // รวมกลุ่มที่เกินจำนวนแผ่นสูงสุดเป็น "อื่น ๆ"
+  if (entries.length > GROUP_MAX_SLICES) {
+    const rest = entries.slice(GROUP_MAX_SLICES - 1);
+
+    entries = entries.slice(0, GROUP_MAX_SLICES - 1);
+
+    entries.push([
+      GROUP_OTHER_LABEL,
+      rest.reduce((sum, item) => sum + item[1], 0)
+    ]);
+
+    groupMap.set(
+      GROUP_OTHER_LABEL,
+      rest.map((item) => item[0])
     );
   }
-    function renderGroupChart(rows) {
-    const canvas = $("rdGroupChart");
-    if (!canvas) return;
 
-    destroyChart("group");
+  const labels = entries.map((item) => item[0]);
+  const values = entries.map((item) => item[1]);
+  const total = values.reduce((sum, value) => sum + value, 0);
 
-    const groupMap = new Map();
+  const colors = labels.map((label, index) =>
+    label === GROUP_OTHER_LABEL || label === GROUP_EMPTY_LABEL
+      ? "#b4bdb8"
+      : GROUP_PALETTE[index % GROUP_PALETTE.length]
+  );
 
-    rows.forEach((row) => {
-      const group = normalizeText(row.group) || "ไม่ระบุกลุ่ม";
-      groupMap.set(group, (groupMap.get(group) || 0) + 1);
-    });
+  setText(
+    "rdGroupChartNote",
+    `แสดง ${formatNumber(counts.size, 0)} กลุ่มตัวชี้วัด · รวม ${formatNumber(total, 0)} ตัวชี้วัด · คลิกกราฟเพื่อดู Excellence`
+  );
 
-    const groups = [...groupMap.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 12);
+  const container = canvas.parentElement;
+  if (container) container.style.height = "360px";
 
-    if (!groups.length) {
-      setText("rdGroupChartNote", "ไม่มีข้อมูลกลุ่มตัวชี้วัด");
-      return;
-    }
+  STATE.charts.group = new window.Chart(canvas, {
+    type: "doughnut",
+    plugins: [doughnutCenterPlugin],
 
-    setText("rdGroupChartNote", `แสดง ${groups.length} กลุ่มตัวชี้วัด`);
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: colors,
+        borderColor: "#ffffff",
+        borderWidth: 3,
+        hoverOffset: 8
+      }]
+    },
 
-    const wide = window.innerWidth > 720;
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: "68%",
 
-    STATE.charts.group = new window.Chart(canvas, {
-      type: "doughnut",
-      plugins: [doughnutCenterPlugin],
+      // คลิกส่วนกราฟเพื่อแสดงสรุป Excellence
+     
+onClick(event, elements, chart) {
+  if (!elements.length) return;
 
-      data: {
-        labels: groups.map(([label]) => label),
+  const index = elements[0].index;
+  const selectedGroup = chart.data.labels[index];
 
-        datasets: [{
-          label: "จำนวนตัวชี้วัด",
-          data: groups.map(([, count]) => count),
+  // เปิดหน้า Excellence.html เมื่อคลิกกลุ่มในกราฟ
+  openExcellencePage(selectedGroup);
+},
 
-          backgroundColor: [
-            "#1a8f63", "#4f8fd6", "#14a3a0", "#e3a634",
-            "#8b6bd6", "#d9628b", "#3aa0bd", "#7bb342",
-            "#e07b39", "#6b7a8f", "#2fbf9a", "#a779d6"
-          ],
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: {
+            usePointStyle: true,
+            pointStyle: "circle",
+            boxWidth: 8,
+            padding: 14
+          }
+        },
 
-          borderColor: "#ffffff",
-          borderWidth: 2,
-          borderRadius: 8,
-          spacing: 3,
-          hoverOffset: 8
-        }]
-      },
+        tooltip: {
+          callbacks: {
+            label(context) {
+              const value = Number(context.raw || 0);
+              const percent = total
+                ? formatNumber((value / total) * 100, 1)
+                : "0";
 
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: "68%",
-        layout: { padding: 8 },
-        animation: { animateRotate: true, duration: 800, easing: "easeOutQuart" },
-
-        plugins: {
-          legend: {
-            position: wide ? "right" : "bottom",
-            labels: {
-              usePointStyle: true,
-              pointStyle: "circle",
-              boxWidth: 8,
-              padding: 14,
-              generateLabels(chart) {
-                const base = window.Chart.overrides.doughnut.plugins.legend.labels
-                  .generateLabels(chart);
-
-                base.forEach((item) => {
-                  item.text = truncateLabel(item.text, 30);
-                });
-
-                return base;
-              }
-            }
-          },
-
-          tooltip: {
-            callbacks: {
-              label(context) {
-                const value = Number(context.raw || 0);
-
-                const total = context.dataset.data.reduce(
-                  (sum, item) => sum + Number(item || 0),
-                  0
-                );
-
-                const percent = total
-                  ? ((value / total) * 100).toFixed(1)
-                  : "0.0";
-
-                return `${formatNumber(value, 0)} รายการ (${percent}%)`;
-              }
+              return `${context.label}: ${formatNumber(value, 0)} รายการ (${percent}%)`;
             }
           }
         }
       }
-    });
-  }
+    }
+  });
+}
+
   /* ==========================================================
      14. TABLE
   ========================================================== */
@@ -1257,8 +1180,10 @@ async function apiRequest(action, params = {}) {
 
     if (number === null) return text;
 
-    // สำหรับค่าเปอร์เซ็นต์ให้แสดง % เสมอ
-    return `${formatNumber(number)}%`;
+    // แสดง % เฉพาะเมื่อค่าต้นฉบับมี % หรือ field บ่งบอกว่าเป็นเปอร์เซ็นต์
+    return text.includes("%")
+      ? `${formatNumber(number)}%`
+      : formatNumber(number);
   }
 
   function renderPagination(from, to, total, page, totalPages) {
@@ -1331,7 +1256,7 @@ async function apiRequest(action, params = {}) {
           </td>
 
           <td class="rd-number">${escapeHTML(targetText)}</td>
-          <td class="rd-number">${escapeHTML(formatRate(row.percent ?? row.rate))}</td>
+          <td class="rd-number">${escapeHTML(formatRate(row.percent))}</td>
           <td>${escapeHTML(row.summary || "—")}</td>
         </tr>
       `;
@@ -1406,6 +1331,7 @@ async function apiRequest(action, params = {}) {
 
     $("rdExportBtn")?.addEventListener("click", exportDashboardXlsx);
 
+
     $("rdPageSize")?.addEventListener("change", (event) => {
       const size = Number(event.target.value);
       STATE.pageSize = Number.isFinite(size) && size > 0 ? size : 25;
@@ -1469,6 +1395,7 @@ async function apiRequest(action, params = {}) {
     setStatus("กำลังโหลดข้อมูลจาก REPORT_02...");
 
     try {
+      // ไม่ให้ปัญหา Chart.js ขัดขวางการโหลดข้อมูล
       const chartPromise = ensureChartJS().catch((error) => {
         console.error("[REPORT CHART] Loader error:", error);
         return false;
@@ -1497,11 +1424,6 @@ async function apiRequest(action, params = {}) {
         : false;
 
       if (!chartAvailable) {
-        setText(
-          "rdResultChartNote",
-          "โหลดข้อมูลแล้ว แต่โหลด Chart.js ไม่สำเร็จ"
-        );
-
         setText(
           "rdGroupChartNote",
           "โหลดข้อมูลแล้ว แต่โหลด Chart.js ไม่สำเร็จ"
@@ -1600,7 +1522,7 @@ async function apiRequest(action, params = {}) {
   }
 
   /* ==========================================================
-     20. LOAD dashboard.html
+     20. LOAD dashboard.HTML
   ========================================================== */
 
   async function loadDashboardHTML() {
@@ -1625,7 +1547,7 @@ async function apiRequest(action, params = {}) {
       mount.innerHTML = `
         <div class="card" role="alert">
           <h3>กรุณาเปิดเว็บไซต์ผ่านเว็บเซิร์ฟเวอร์</h3>
-          <p>ไม่สามารถโหลด dashboard.html ผ่าน file:// ได้</p>
+          <p>ไม่สามารถโหลด dashboard.HTML ผ่าน file:// ได้</p>
           <p>กรุณาเปิดผ่าน GitHub Pages หรือใช้ python -m http.server 8000</p>
         </div>
       `;
@@ -1641,7 +1563,7 @@ async function apiRequest(action, params = {}) {
     `;
 
     try {
-      const url = new URL("./dashboard.html", document.baseURI);
+      const url = new URL("dashboard.HTML", document.baseURI);
       url.searchParams.set("_", String(Date.now()));
 
       const response = await fetch(url.href, {
@@ -1651,18 +1573,18 @@ async function apiRequest(action, params = {}) {
 
       if (!response.ok) {
         throw new Error(
-          `โหลด dashboard.html ไม่สำเร็จ (HTTP ${response.status})`
+          `โหลด dashboard.HTML ไม่สำเร็จ (HTTP ${response.status})`
         );
       }
 
       const html = await response.text();
 
       if (!html.trim()) {
-        throw new Error("ไฟล์ dashboard.html ไม่มีเนื้อหา");
+        throw new Error("ไฟล์ dashboard.HTML ไม่มีเนื้อหา");
       }
 
       if (!/id=["']reportKpiDashboard["']/.test(html)) {
-        throw new Error('ไม่พบ id="reportKpiDashboard" ใน dashboard.html');
+        throw new Error('ไม่พบ id="reportKpiDashboard" ใน dashboard.HTML');
       }
 
       mount.innerHTML = html;
@@ -1679,7 +1601,7 @@ async function apiRequest(action, params = {}) {
         <div class="card" role="alert">
           <h3>ไม่สามารถโหลด Dashboard ได้</h3>
           <p>${escapeHTML(error.message || "เกิดข้อผิดพลาด")}</p>
-          <p>กรุณาตรวจสอบชื่อไฟล์ dashboard.html และสถานะ GitHub Pages</p>
+          <p>กรุณาตรวจสอบชื่อไฟล์ dashboard.HTML และสถานะ GitHub Pages</p>
           <button type="button" class="rd-btn rd-btn-light" id="rdRetryLoadHTML">
             ลองโหลดอีกครั้ง
           </button>
