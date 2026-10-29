@@ -1521,155 +1521,197 @@ onClick(event, elements, chart) {
     }
   }
 
-  /* ==========================================================
-     20. LOAD dashboard.HTML
-  ========================================================== */
+  
+/* ==========================================================
+   20. LOAD dashboard.html
+   Frontend : GitHub Pages
+   File     : app_dashboard.js
+========================================================== */
 
- 
-  /* ==========================================================
-     20. LOAD dashboard.html
-     Frontend: GitHub Pages
-  ========================================================== */
+const DASHBOARD_HTML_PATH = "/KPI/report/dashboard.html";
 
-  async function loadDashboardHTML() {
-    // ป้องกันการโหลด HTML ซ้อนกัน
-    if (STATE.loadingHTML) return;
+async function loadDashboardHTML() {
+  // 1. ป้องกันการโหลด HTML ซ้อนกัน
+  if (STATE.loadingHTML) {
+    console.warn("[REPORT] HTML is already loading.");
+    return;
+  }
 
-    const mount = $("dashboardMount");
+  const mount = $("dashboardMount");
 
-    if (!mount) {
-      // อาจมี dashboard อยู่ในหน้าโดยตรง
-      if (root()) {
-        initDashboard();
-      } else {
-        console.error(
-          "[REPORT] ไม่พบ #dashboardMount และ #reportKpiDashboard"
-        );
+  // 2. หากไม่มี mount ให้ใช้ Dashboard ที่อยู่ในหน้าโดยตรง
+  if (!mount) {
+    if (root()) {
+      initDashboard();
+    } else {
+      console.error(
+        "[REPORT] ไม่พบ #dashboardMount และ #reportKpiDashboard"
+      );
+    }
+    return;
+  }
+
+  // 3. หากโหลดและเริ่มต้นแล้ว ไม่ต้องโหลดซ้ำ
+  if (
+    mount.dataset.rdLoaded === "true" &&
+    root() &&
+    STATE.initialized
+  ) {
+    console.info("[REPORT] Dashboard HTML is already loaded.");
+    return;
+  }
+
+  // 4. GitHub Pages ต้องเปิดผ่าน HTTP/HTTPS
+  if (window.location.protocol === "file:") {
+    mount.innerHTML = `
+      <div class="card" role="alert">
+        <h3>ไม่สามารถโหลด Dashboard ได้</h3>
+        <p>กรุณาเปิดผ่าน GitHub Pages หรือ Web Server</p>
+        <p>ตัวอย่าง: python -m http.server 8000</p>
+      </div>
+    `;
+    return;
+  }
+
+  STATE.loadingHTML = true;
+  mount.dataset.rdLoaded = "false";
+
+  mount.innerHTML = `
+    <div class="card" role="status" aria-live="polite">
+      กำลังโหลด Dashboard...
+    </div>
+  `;
+
+  try {
+    // 5. สร้าง URL โดยอิงจาก GitHub Pages path ที่กำหนด
+    const url = new URL(
+      DASHBOARD_HTML_PATH,
+      window.location.origin
+    );
+
+    // ป้องกัน cache ของ HTML เก่า
+    url.searchParams.set("_", String(Date.now()));
+
+    console.info(
+      "[REPORT] Loading dashboard HTML:",
+      url.href
+    );
+
+    // 6. ขอไฟล์ HTML
+    const response = await fetch(url.href, {
+      method: "GET",
+      cache: "no-store",
+      headers: {
+        "Accept": "text/html"
       }
-      return;
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `โหลด dashboard.html ไม่สำเร็จ ` +
+        `(HTTP ${response.status}) ` +
+        `URL: ${url.pathname}`
+      );
     }
 
-    // ถ้าโหลดและเริ่มต้นแล้ว ไม่ต้องโหลดซ้ำ
+    // 7. อ่านเนื้อหา HTML
+    const html = await response.text();
+
+    if (!html.trim()) {
+      throw new Error("ไฟล์ dashboard.html ไม่มีเนื้อหา");
+    }
+
+    // 8. ตรวจสอบว่าเป็นไฟล์ HTML ที่ถูกต้อง
+    const parser = new DOMParser();
+
+    const parsedHTML = parser.parseFromString(
+      html,
+      "text/html"
+    );
+
+    const dashboardRoot = parsedHTML.getElementById(
+      "reportKpiDashboard"
+    );
+
+    if (!dashboardRoot) {
+      throw new Error(
+        'ไม่พบ id="reportKpiDashboard" ใน dashboard.html'
+      );
+    }
+
+    // ตรวจจับหน้า 404 ที่ถูกส่งกลับมาด้วย HTTP 200
+    const pageTitle = normalizeText(parsedHTML.title);
+
     if (
-      mount.dataset.rdLoaded === "true" &&
-      root() &&
-      STATE.initialized
+      /404|page not found/i.test(pageTitle) &&
+      !dashboardRoot
     ) {
-      return;
+      throw new Error(
+        "เซิร์ฟเวอร์ส่งหน้า 404 กลับมาแทน Dashboard"
+      );
     }
 
-    // ไม่รองรับการ fetch ไฟล์ผ่าน file://
-    if (window.location.protocol === "file:") {
-      mount.innerHTML = `
-        <div class="card" role="alert">
-          <h3>กรุณาเปิดเว็บไซต์ผ่านเว็บเซิร์ฟเวอร์</h3>
-          <p>ไม่สามารถโหลด dashboard.html ผ่าน file:// ได้</p>
-          <p>ใช้ GitHub Pages หรือ python -m http.server 8000</p>
-        </div>
-      `;
-      return;
-    }
+    // 9. แทรก Dashboard ลงใน mount
+    // หมายเหตุ: นำเข้าเฉพาะ root element
+    mount.replaceChildren(
+      document.importNode(dashboardRoot, true)
+    );
 
-    STATE.loadingHTML = true;
+    mount.dataset.rdLoaded = "true";
+
+    console.info(
+      "[REPORT] Dashboard HTML loaded successfully."
+    );
+
+    // 10. เริ่มต้น Dashboard และโหลดข้อมูล
+    initDashboard();
+
+  } catch (error) {
+    console.error(
+      "[REPORT] Dashboard HTML error:",
+      error
+    );
+
+    mount.dataset.rdLoaded = "false";
+
+    const message = error?.message ||
+      "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ";
 
     mount.innerHTML = `
-      <div class="card" role="status" aria-live="polite">
-        กำลังโหลด Dashboard...
+      <div class="card" role="alert">
+        <h3>ไม่สามารถโหลด Dashboard ได้</h3>
+
+        <p>${escapeHTML(message)}</p>
+
+        <p>
+          กรุณาตรวจสอบชื่อไฟล์ dashboard.html
+          และตำแหน่งไฟล์ใน GitHub Repository
+        </p>
+
+        <button
+          type="button"
+          class="rd-btn rd-btn-light"
+          id="rdRetryLoadHTML"
+        >
+          ลองโหลดอีกครั้ง
+        </button>
       </div>
     `;
 
-    try {
-      // สำคัญ: ใช้ dashboard.html ตัวพิมพ์เล็ก
-      // URL นี้อิงจาก URL ของหน้าเว็บที่กำลังเปิด
-      const url = new URL(
-        "dashboard.html",
-        document.baseURI
-      );
+    // 11. ผูกปุ่มลองใหม่
+    $("rdRetryLoadHTML")?.addEventListener(
+      "click",
+      () => {
+        loadDashboardHTML();
+      },
+      { once: true }
+    );
 
-      // ป้องกันการใช้ cache ของ HTML เก่า
-      url.searchParams.set("_", String(Date.now()));
-
-      console.info("[REPORT] Loading dashboard HTML:", url.href);
-
-      const response = await fetch(url.href, {
-        method: "GET",
-        cache: "no-store"
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          `โหลด dashboard.html ไม่สำเร็จ ` +
-          `(HTTP ${response.status}) — ${url.pathname}`
-        );
-      }
-
-      const html = await response.text();
-
-      if (!html.trim()) {
-        throw new Error("ไฟล์ dashboard.html ไม่มีเนื้อหา");
-      }
-
-      // ตรวจสอบว่าเป็นไฟล์ Dashboard ที่ถูกต้อง
-      const parser = new DOMParser();
-      const parsedHTML = parser.parseFromString(
-        html,
-        "text/html"
-      );
-
-      const dashboardRoot = parsedHTML.getElementById(
-        "reportKpiDashboard"
-      );
-
-      if (!dashboardRoot) {
-        throw new Error(
-          'ไม่พบ id="reportKpiDashboard" ใน dashboard.html'
-        );
-      }
-
-      // แทรกเนื้อหา Dashboard ลงในหน้า
-      mount.innerHTML = dashboardRoot.outerHTML;
-      mount.dataset.rdLoaded = "true";
-
-      // เริ่มต้นระบบหลังจากแทรก HTML แล้ว
-      initDashboard();
-
-      console.info("[REPORT] Dashboard HTML loaded successfully");
-
-    } catch (error) {
-      console.error("[REPORT] Dashboard HTML error:", error);
-
-      mount.dataset.rdLoaded = "false";
-
-      mount.innerHTML = `
-        <div class="card" role="alert">
-          <h3>ไม่สามารถโหลด Dashboard ได้</h3>
-          <p>${escapeHTML(
-            error.message || "เกิดข้อผิดพลาด"
-          )}</p>
-          <p>
-            ตรวจสอบตำแหน่งไฟล์ dashboard.html
-            และการเผยแพร่ GitHub Pages
-          </p>
-          <button
-            type="button"
-            class="rd-btn rd-btn-light"
-            id="rdRetryLoadHTML"
-          >
-            ลองโหลดอีกครั้ง
-          </button>
-        </div>
-      `;
-
-      $("rdRetryLoadHTML")?.addEventListener(
-        "click",
-        loadDashboardHTML
-      );
-
-    } finally {
-      STATE.loadingHTML = false;
-    }
+  } finally {
+    // 12. ปลดล็อกสถานะเมื่อเสร็จสิ้น
+    STATE.loadingHTML = false;
   }
-
+}
 
   /* ==========================================================
      21. STARTUP
