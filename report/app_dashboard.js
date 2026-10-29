@@ -965,175 +965,83 @@ async function apiRequest(action, params = {}) {
     );
   }
 
- function renderResultTargetChart() {
-  const canvas = $("rdResultTargetChart");
+function renderResultTargetChart(key, rows) {
+  const mode = RESULT_GROUPS[key];
+  if (!mode) return;
 
-  if (!canvas || !window.Chart) {
-    return;
-  }
+  const canvas = $(mode.canvasId);
+  if (!canvas || !window.Chart) return;
 
-  const rows = getFilteredRows();
-  const groups = new Map();
+  destroyChart(mode.chartKey);
 
-  rows.forEach((row) => {
-    const name = String(
-      row.group || "ไม่ระบุกลุ่ม"
-    ).trim();
-
-    if (!groups.has(name)) {
-      groups.set(name, {
-        name,
-        resultTotal: 0,
-        targetTotal: 0,
-        resultCount: 0,
-        targetCount: 0
-      });
-    }
-
-    const item = groups.get(name);
-    const result = toNumber(row.result);
-    const target = toNumber(row.target);
-
-    if (result !== null) {
-      item.resultTotal += result;
-      item.resultCount += 1;
-    }
-
-    if (target !== null) {
-      item.targetTotal += target;
-      item.targetCount += 1;
-    }
-  });
-
-  const chartRows = Array.from(groups.values())
+  const items = aggregateResultTarget(rows, mode.field)
+    .slice(0, CONFIG.RESULT_CHART_LIMIT)
     .map((item) => ({
-      ...item,
-      result: item.resultCount
-        ? item.resultTotal / item.resultCount
-        : 0,
-      target: item.targetCount
-        ? item.targetTotal / item.targetCount
-        : 0
-    }))
-    .filter(
-      (item) => item.resultCount || item.targetCount
-    )
-    .sort((a, b) => b.result - a.result)
-    .slice(0, CONFIG.RESULT_CHART_LIMIT);
+      name: item.name,
+      result: item.count ? item.result / item.count : 0,
+      target: item.withTarget ? item.target / item.withTarget : 0
+    }));
 
-  if (STATE.charts.resultTarget) {
-    STATE.charts.resultTarget.destroy();
-    STATE.charts.resultTarget = null;
-  }
-
-  if (!chartRows.length) {
-    setChartNote(
-      "rdResultTargetNote",
-      "ไม่พบข้อมูลผลลัพธ์และเป้าหมายสำหรับแสดงกราฟ"
-    );
+  if (!items.length) {
+    setText(mode.noteId, "ไม่พบข้อมูลผลลัพธ์และเป้าหมายสำหรับแสดงกราฟ");
     return;
   }
 
-  const ctx = canvas.getContext("2d");
-
-  STATE.charts.resultTarget = new Chart(ctx, {
+  STATE.charts[mode.chartKey] = new window.Chart(canvas, {
     type: "bar",
-
+    plugins: [valueLabelsPlugin],
     data: {
-      labels: chartRows.map((item) => item.name),
-
+      labels: items.map((i) => i.name),
       datasets: [
         {
           label: "ผลลัพธ์เฉลี่ย",
-          data: chartRows.map((item) => item.result),
+          data: items.map((i) => i.result),
           backgroundColor: CONFIG.COLORS.primary,
           borderRadius: 6
         },
         {
           label: "เป้าหมายเฉลี่ย",
-          data: chartRows.map((item) => item.target),
+          data: items.map((i) => i.target),
           backgroundColor: CONFIG.COLORS.secondary,
           borderRadius: 6
         }
       ]
     },
-
     options: {
+      indexAxis: "y",
       responsive: true,
       maintainAspectRatio: false,
-
-      interaction: {
-        mode: "index",
-        intersect: false
-      },
-
+      layout: { padding: { right: 40 } },
+      interaction: { mode: "index", intersect: false },
       plugins: {
-        legend: {
-          position: "top"
-        },
-
+        legend: { position: "top" },
         tooltip: {
           callbacks: {
-            label(context) {
-              return `${context.dataset.label}: ${
-                Number(context.parsed.y || 0)
-                  .toLocaleString("th-TH", {
-                    maximumFractionDigits: 2
-                  })
-              }`;
+            label(ctx) {
+              return `${ctx.dataset.label}: ${formatNumber(ctx.parsed.x)}`;
             }
           }
         }
       },
-
       scales: {
-        x: {
-          ticks: {
-            autoSkip: false,
-            maxRotation: 45,
-            minRotation: 0
-          }
-        },
-
-        y: {
-          beginAtZero: true
-        }
+        x: { beginAtZero: true },
+        y: { ticks: { autoSkip: false } }
       },
-
       onHover(event, elements) {
-        const target = event.native?.target;
-
-        if (target) {
-          target.style.cursor = elements.length
-            ? "pointer"
-            : "default";
-        }
+        const el = event.native?.target;
+        if (el) el.style.cursor = elements.length ? "pointer" : "default";
       },
-
       onClick(_event, elements) {
-        if (!elements.length) {
-          return;
-        }
+        if (!elements.length) return;
 
-        const selected = chartRows[elements[0].index];
-
-        if (!selected) {
-          return;
-        }
-
-        const filter = $("rdGroupFilter");
-
-        if (!filter) {
-          return;
-        }
+        const selected = items[elements[0].index];
+        const filter = $(mode.filterId);
+        if (!selected || !filter) return;
 
         const hasOption = Array.from(filter.options).some(
-          (option) => option.value === selected.name
+          (o) => o.value === selected.name
         );
-
-        if (!hasOption) {
-          return;
-        }
+        if (!hasOption) return;
 
         filter.value = selected.name;
         applyFilters();
@@ -1141,9 +1049,9 @@ async function apiRequest(action, params = {}) {
     }
   });
 
-  setChartNote(
-    "rdResultTargetNote",
-    "แสดงผลลัพธ์เฉลี่ยเทียบกับเป้าหมายเฉลี่ย · คลิกแท่งเพื่อกรองตามกลุ่มนั้น"
+  setText(
+    mode.noteId,
+    `แสดงผลลัพธ์เฉลี่ยเทียบเป้าหมายเฉลี่ยตาม${mode.label} · คลิกแท่งเพื่อกรอง`
   );
 }
 
