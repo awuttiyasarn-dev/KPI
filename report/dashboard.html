@@ -101,51 +101,7 @@
 
     <div class="rd-chart-grid">
 
-      <article class="rd-panel rd-chart-card rd-chart-result rd-chart-wide">
-  <div class="rd-chart-heading">
-    <div>
-      <h3>ผลลัพธ์เทียบเป้าหมาย: ตามกลุ่มตัวชี้วัด</h3>
-      <p>รวมผลลัพธ์และเป้าหมายแยกตามกลุ่มตัวชี้วัด (kpi_Group_Des)</p>
-    </div>
-  </div>
-
-  <div class="rd-chart-note" id="rdResultChartNote"></div>
-  <div class="rd-chart-container">
-    <canvas
-      id="rdResultTargetChart"
-      role="img"
-      aria-label="กราฟผลลัพธ์เทียบเป้าหมายตามกลุ่มตัวชี้วัด">
-    </canvas>
-  </div>
-</article>
-
-      <article class="rd-panel rd-chart-card rd-chart-result rd-chart-wide">
-        <div class="rd-chart-heading">
-          <div>
-            <h3>ผลลัพธ์เทียบเป้าหมาย: ตาม Excellence</h3>
-            <p>รวมผลลัพธ์และเป้าหมายแยกตาม Excellence</p>
-          </div>
-        </div>
-        <div class="rd-chart-note" id="rdResultExcellenceNote"></div>
-        <div class="rd-chart-container">
-          <canvas id="rdResultTargetExcellenceChart" role="img" aria-label="กราฟผลลัพธ์เทียบเป้าหมายตาม Excellence"></canvas>
-        </div>
-      </article>
-
-      <article class="rd-panel rd-chart-card rd-chart-result rd-chart-wide">
-        <div class="rd-chart-heading">
-          <div>
-            <h3>ผลลัพธ์เทียบเป้าหมาย: ตามหน่วยงาน</h3>
-            <p>รวมผลลัพธ์และเป้าหมายแยกตามหน่วยงาน (Tsection)</p>
-          </div>
-        </div>
-        <div class="rd-chart-note" id="rdResultSectionNote"></div>
-        <div class="rd-chart-container">
-          <canvas id="rdResultTargetSectionChart" role="img" aria-label="กราฟผลลัพธ์เทียบเป้าหมายตามหน่วยงาน"></canvas>
-        </div>
-      </article>
-
-      <article class="rd-panel rd-chart-card rd-chart-count rd-chart-wide">
+      <article class="rd-panel rd-chart-card rd-chart-group rd-chart-wide">
         <div class="rd-chart-heading">
           <div>
             <h3>จำนวนตัวชี้วัดตามกลุ่ม</h3>
@@ -160,6 +116,13 @@
 
     </div>
   </section>
+
+<!-- Excellence Summary: แสดงเมื่อคลิกกราฟกลุ่ม KPI -->
+<section id="rdExcellenceSummary" class="rd-excellence-summary" aria-live="polite">
+  <div class="rd-excellence-empty">
+    คลิกส่วนใดส่วนหนึ่งของกราฟเพื่อดูสรุป Excellence จาก Summary
+  </div>
+</section>
 
   <!-- KPI Table -->
   <section class="rd-panel rd-table-panel" aria-labelledby="rdTableHeading">
