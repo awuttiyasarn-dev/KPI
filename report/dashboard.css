@@ -864,3 +864,49 @@
   }
   #reportKpiDashboard .rd-loading-spinner { animation-duration: 2s; }
 }
+.rd-chart-container {
+  position: relative;
+  width: 100%;
+  min-height: 280px;
+}
+
+/* โดนัทใช้ความสูงคงที่ ส่วนกราฟแท่งให้ JS ปรับเอง */
+.rd-chart-count .rd-chart-container {
+  height: 380px;
+}
+
+.rd-chart-card {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.rd-chart-card:hover {
+  box-shadow: 0 10px 28px rgba(20, 53, 42, 0.10);
+  transform: translateY(-2px);
+}
+
+.rd-chart-heading h3 {
+  margin: 0 0 2px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #172b22;
+}
+
+.rd-chart-heading p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #829187;
+}
+
+.rd-chart-note {
+  display: inline-block;
+  margin: 10px 0 6px;
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  color: #146c4a;
+  background: #eaf6f0;
+  border-radius: 999px;
+}
+
+.rd-chart-note:empty {
+  display: none;
+}
