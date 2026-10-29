@@ -1,0 +1,1497 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#087f5b">
+  <title>Excellence | REPORT KPI Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root {
+      --green:#087f5b; --green-dark:#075c45; --green-soft:#e8f7f0;
+      --ink:#172b25; --muted:#64748b; --line:#e2e8f0; --surface:#fff;
+      --page:#f4f8f6; --red:#b91c1c; --amber:#92400e;
+      --shadow:0 12px 32px rgba(15, 56, 42, .07);
+    }
+
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body {
+      margin:0; font-family:"Kanit",sans-serif; color:var(--ink); background:var(--page);
+    }
+    button,input,select { font:inherit; }
+    a { color:inherit; }
+
+    .topbar {
+      background:linear-gradient(120deg,#075c45,#0b8b63); color:#fff; padding:18px 22px;
+    }
+    .topbar-inner {
+      max-width:1440px; margin:auto; display:flex; gap:16px; align-items:center; justify-content:space-between;
+    }
+    .brand { display:flex; align-items:center; gap:12px; min-width:0; }
+    .brand-mark {
+      width:44px; height:44px; border-radius:14px; display:grid; place-items:center; flex:0 0 auto;
+      background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.25); font-size:25px;
+    }
+    .brand h1 {
+      margin:0; font-size:clamp(18px,2.4vw,26px); font-weight:600; line-height:1.35;
+    }
+    .brand p { margin:3px 0 0; opacity:.82; font-size:13px; }
+
+    .top-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .btn {
+      display:inline-flex; align-items:center; justify-content:center; gap:7px;
+      border:1px solid var(--line); border-radius:11px; padding:9px 14px; background:#fff;
+      color:var(--ink); text-decoration:none; cursor:pointer; transition:.15s ease; white-space:nowrap;
+    }
+    .btn:hover { transform:translateY(-1px); box-shadow:0 5px 14px rgba(0,0,0,.08); }
+    .btn-light { border-color:#ffffff55; color:#fff; background:#ffffff12; }
+    .btn-primary { color:#fff; background:var(--green); border-color:var(--green); }
+    .btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+
+    main { max-width:1440px; margin:0 auto; padding:24px 22px 40px; }
+
+    .crumb {
+      display:flex; flex-wrap:wrap; align-items:center; gap:8px; color:var(--muted);
+      font-size:13px; margin-bottom:16px;
+    }
+    .crumb a { color:var(--green); text-decoration:none; }
+
+    .hero {
+      background:var(--surface); border:1px solid var(--line); border-radius:20px; padding:23px;
+      box-shadow:var(--shadow); margin-bottom:18px;
+    }
+    .eyebrow {
+      display:inline-flex; align-items:center; gap:7px; padding:5px 10px; border-radius:999px;
+      background:var(--green-soft); color:var(--green-dark); font-size:12px; font-weight:500;
+    }
+    .dot { width:7px; height:7px; border-radius:50%; background:#10b981; }
+
+    .hero h2 {
+      font-size:clamp(23px,3vw,34px); margin:12px 0 5px; font-weight:600; overflow-wrap:anywhere;
+    }
+    .hero p { color:var(--muted); margin:0; }
+
+    .filter-panel {
+      display:grid; grid-template-columns:minmax(180px,1fr) minmax(220px,2fr) auto auto;
+      gap:12px; align-items:end; margin-top:20px;
+    }
+    .field label {
+      display:block; font-size:12px; color:var(--muted); margin:0 0 6px;
+    }
+    .field input,.field select {
+      width:100%; min-height:43px; border:1px solid #cbd5e1; border-radius:11px; padding:9px 12px;
+      color:var(--ink); background:#fff; outline:none;
+    }
+    .field input:focus,.field select:focus {
+      border-color:var(--green); box-shadow:0 0 0 3px #087f5b18;
+    }
+
+    .stats {
+      display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:18px;
+    }
+    .stat {
+      background:#fff; border:1px solid var(--line); border-radius:17px; padding:18px;
+      box-shadow:0 5px 18px rgba(15,56,42,.04); min-width:0;
+    }
+    .stat-top {
+      display:flex; align-items:center; justify-content:space-between; gap:8px; color:var(--muted); font-size:13px;
+    }
+    .stat-icon {
+      width:36px; height:36px; display:grid; place-items:center; border-radius:12px;
+      background:var(--green-soft); color:var(--green); font-size:18px;
+    }
+    .stat-value {
+      margin-top:12px; font-size:clamp(24px,3vw,34px); line-height:1.2; font-weight:600; overflow-wrap:anywhere;
+    }
+    .stat-note { margin-top:5px; color:var(--muted); font-size:12px; }
+
+    .panel {
+      background:#fff; border:1px solid var(--line); border-radius:18px; box-shadow:var(--shadow); overflow:hidden;
+    }
+    .panel-head {
+      display:flex; justify-content:space-between; align-items:center; gap:12px; padding:18px 20px; border-bottom:1px solid var(--line);
+    }
+    .panel-head h3 { margin:0; font-size:18px; font-weight:600; }
+    .panel-head p { margin:3px 0 0; font-size:12px; color:var(--muted); }
+
+    .table-wrap { width:100%; overflow:auto; }
+    table {
+      width:100%; border-collapse:separate; border-spacing:0; min-width:1050px;
+    }
+    thead th {
+      position:sticky; top:0; z-index:1; background:#f8fafc; color:#475569; font-size:12px; font-weight:500;
+      text-align:left; padding:13px 14px; border-bottom:1px solid var(--line); white-space:nowrap;
+    }
+    tbody td {
+      padding:13px 14px; border-bottom:1px solid #edf2f7; vertical-align:top; font-size:13px;
+    }
+    tbody tr:hover { background:#f8fcfa; }
+    tbody tr:last-child td { border-bottom:0; }
+
+    .kpi-code {
+      display:inline-block; padding:4px 8px; border-radius:7px; background:#eff6ff; color:#1d4ed8; font-size:12px; white-space:nowrap;
+    }
+    .summary-cell {
+      min-width:180px; max-width:340px; white-space:normal; overflow-wrap:anywhere; color:#475569;
+    }
+    .numeric { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .desc { min-width:220px; max-width:420px; white-space:normal; overflow-wrap:anywhere; }
+    .empty {
+      text-align:center; padding:42px 18px; color:var(--muted);
+    }
+    .empty strong { display:block; color:var(--ink); font-size:17px; margin-bottom:5px; }
+
+    .status {
+      margin-bottom:16px; padding:12px 15px; border-radius:12px; border:1px solid #bbf7d0;
+      background:#f0fdf4; color:#166534; font-size:13px;
+    }
+    .status.error { border-color:#fecaca; background:#fef2f2; color:#991b1b; }
+    .status.warn { border-color:#fde68a; background:#fffbeb; color:#92400e; }
+    .status[hidden] { display:none; }
+
+    .table-footer {
+      display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;
+      padding:14px 18px; border-top:1px solid var(--line); color:var(--muted); font-size:12px;
+    }
+    .pagination { display:flex; gap:6px; align-items:center; }
+    .page-btn {
+      border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:9px; min-width:36px;
+      padding:7px 10px; cursor:pointer;
+    }
+    .page-btn.active { background:var(--green); color:#fff; border-color:var(--green); }
+    .page-btn:disabled { opacity:.4; cursor:not-allowed; }
+
+    .footer {
+      text-align:center; color:#94a3b8; font-size:12px; padding:22px 10px 0;
+    }
+
+    .spinner {
+      display:inline-block; width:15px; height:15px; border:2px solid currentColor; border-right-color:transparent;
+      border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; margin-right:6px;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    @media(max-width:900px) {
+      .filter-panel { grid-template-columns:1fr 1fr; }
+      .stats { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    }
+
+    @media(max-width:600px) {
+      .topbar { padding:14px; }
+      .topbar-inner { align-items:flex-start; flex-direction:column; }
+      main { padding:16px 12px 28px; }
+      .hero { padding:17px; }
+      .filter-panel { grid-template-columns:1fr; }
+      .stats { gap:9px; }
+      .stat { padding:13px; }
+      .stat-top { font-size:11px; }
+      .stat-icon { width:30px;height:30px; }
+      .panel-head { align-items:flex-start; flex-direction:column; padding:15px; }
+      .top-actions { width:100%; }
+      .top-actions .btn { flex:1; }
+    }
+
+    .analytics-panel {
+      background:#fff; border:1px solid var(--line); border-radius:18px; box-shadow:var(--shadow);
+      padding:22px; margin-bottom:18px;
+    }
+    .analytics-header {
+      display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:22px;
+    }
+    .analytics-eyebrow {
+      font-size:11px; font-weight:600; color:var(--green); letter-spacing:1px;
+    }
+    .analytics-header h3 {
+      margin:5px 0; font-size:20px; font-weight:600;
+    }
+    .analytics-header p {
+      margin:0; font-size:13px; color:var(--muted);
+    }
+    .analytics-total {
+      background:var(--green-soft); color:var(--green-dark); padding:8px 13px; border-radius:10px;
+      font-size:13px; font-weight:500;
+    }
+    .analytics-grid {
+      display:grid; grid-template-columns:minmax(0,1fr) minmax(280px,1fr); gap:24px; align-items:center;
+    }
+    .chart-card { min-width:0; display:flex; align-items:center; justify-content:center; }
+    .chart-container {
+      position:relative; width:100%; max-width:400px; height:300px; margin:auto;
+    }
+    .result-breakdown { min-width:0; }
+    .result-breakdown h4 { margin:0 0 14px; font-size:16px; }
+    .result-row {
+      display:grid; grid-template-columns:12px minmax(0,1fr) auto; align-items:center; gap:10px;
+      padding:13px 0; border-bottom:1px solid #edf2f7;
+    }
+    .result-color { width:10px; height:10px; border-radius:4px; }
+    .result-label { font-size:13px; font-weight:500; }
+    .result-detail { margin-top:3px; font-size:11px; color:var(--muted); }
+    .result-number { text-align:right; font-size:15px; font-weight:600; font-variant-numeric:tabular-nums; }
+    .result-percent {
+      display:block; margin-top:3px; font-size:12px; font-weight:400; color:var(--muted);
+    }
+    .chart-note { margin:15px 0 0; font-size:11px; color:var(--muted); line-height:1.7; }
+    .result-empty { color:var(--muted); padding:20px 0; font-size:13px; }
+
+    @media (max-width: 700px) {
+      .analytics-panel { padding:16px; }
+      .analytics-grid { grid-template-columns:1fr; gap:12px; }
+      .chart-container { height:260px; }
+    }
+    
+/* Excellence chart — modern healthcare style */
+
+#excellenceChart {
+  display: block;
+  width: 100% !important;
+  max-width: 100%;
+}
+
+#resultBreakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+#resultBreakdown .result-row {
+  box-sizing: border-box;
+  transition:
+    transform .2s ease,
+    box-shadow .2s ease,
+    border-color .2s ease;
+}
+
+#resultBreakdown .result-row:hover {
+  transform: translateY(-2px);
+  border-color: #a7f3d0 !important;
+  box-shadow: 0 6px 18px rgba(5, 150, 105, .07);
+}
+
+#resultBreakdown .result-label {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+#resultBreakdown .result-number {
+  white-space: nowrap;
+}
+
+@media (max-width: 576px) {
+  #resultBreakdown .result-row {
+    gap: 9px !important;
+    padding: 11px 9px !important;
+  }
+
+  #resultBreakdown .result-number {
+    font-size: 13px !important;
+  }
+
+  #resultBreakdown .result-detail {
+    font-size: 10px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #resultBreakdown .result-row,
+  #resultBreakdown .result-row * {
+    transition: none !important;
+  }
+}
+
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">✦</div>
+        <div>
+          <h1>REPORT KPI Dashboard</h1>
+          <p>Excellence &amp; KPI Performance</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <a class="btn btn-light" id="backButton" href="index.HTML">← กลับ Dashboard</a>
+        <button class="btn btn-light" id="reloadButton" type="button">↻ โหลดข้อมูลใหม่</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <nav class="crumb" aria-label="breadcrumb">
+      <a href="dashboard.HTML">Dashboard</a><span>›</span><span>Excellence</span><span id="crumbGroup"></span>
+    </nav>
+
+    <section class="hero">
+      <span class="eyebrow"><span class="dot"></span> KPI EXCELLENCE DETAIL</span>
+      <h2 id="pageTitle">สรุป Excellence</h2>
+      <p id="pageSubtitle">รายละเอียดตัวชี้วัดจากฐานข้อมูล REPORT_02</p>
+
+      <div class="filter-panel">
+        <div class="field">
+          <label for="yearFilter">ปีงบประมาณ</label>
+          <select id="yearFilter">
+            <option value="all">ทุกปีงบประมาณ</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="searchInput">ค้นหาตัวชี้วัด / หน่วยงาน / สรุปผล</label>
+          <input id="searchInput" type="search" placeholder="พิมพ์คำค้นหา...">
+        </div>
+        <button class="btn btn-primary" id="searchButton" type="button">ค้นหา</button>
+        <button class="btn" id="clearButton" type="button">ล้างตัวกรอง</button>
+      </div>
+    </section>
+
+    <div id="statusBox" class="status" role="status" aria-live="polite">
+      <span class="spinner"></span>กำลังเชื่อมต่อ Google Apps Script...
+    </div>
+
+    <section class="stats" aria-label="ภาพรวม">
+      <article class="stat">
+        <div class="stat-top"><span>จำนวนรายการ KPI</span><span class="stat-icon">▦</span></div>
+        <div class="stat-value" id="totalKpi">—</div>
+        <div class="stat-note">ตามตัวกรองปัจจุบัน</div>
+      </article>
+      <article class="stat">
+        <div class="stat-top"><span>จำนวน Excellence</span><span class="stat-icon">✦</span></div>
+        <div class="stat-value" id="totalExcellence">—</div>
+        <div class="stat-note">รายการ Excellence ที่ไม่ซ้ำกัน</div>
+      </article>
+      <article class="stat">
+        <div class="stat-top"><span>จำนวนหน่วยงาน</span><span class="stat-icon">⌂</span></div>
+        <div class="stat-value" id="totalSection">—</div>
+        <div class="stat-note">หน่วยงานที่มีข้อมูล</div>
+      </article>
+      <article class="stat">
+        <div class="stat-top"><span>มีสรุปผล</span><span class="stat-icon">✓</span></div>
+        <div class="stat-value" id="totalSummary">—</div>
+        <div class="stat-note">รายการที่มีข้อมูลสรุปผล</div>
+      </article>
+    </section>
+
+    <section class="analytics-panel">
+      <div class="analytics-header">
+        <div>
+          <span class="analytics-eyebrow">EXCELLENCE ANALYTICS</span>
+          <h3>กราฟสรุปผลการประเมิน Excellence</h3>
+          <p>จำนวนรายการและร้อยละ จำแนกตามสถานะสรุปผล</p>
+        </div>
+        <span class="analytics-total" id="chartTotal">0 รายการ</span>
+      </div>
+
+      <div class="analytics-grid">
+        <div class="chart-card">
+          <div class="chart-container">
+            <canvas id="excellenceChart"
+              role="img"
+              aria-label="กราฟวงแหวนสรุปผลการประเมิน Excellence">
+            </canvas>
+          </div>
+        </div>
+
+        <div class="result-breakdown">
+          <h4>รายละเอียดผลการประเมิน</h4>
+          <div id="resultBreakdown">
+            <div class="result-empty">กำลังประมวลผลข้อมูล...</div>
+          </div>
+          <p class="chart-note">
+            ร้อยละคำนวณจากจำนวนรายการทั้งหมดที่แสดงตามตัวกรองปัจจุบัน
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div>
+          <h3>รายละเอียดตัวชี้วัด</h3>
+          <p id="tableCaption">ข้อมูลจากชีต REPORT_02</p>
+        </div>
+        <button class="btn" id="exportButton" type="button">⇩ ส่งออก CSV</button>
+      </div>
+
+      <div id="tableContainer" class="table-wrap">
+        <div class="empty"><strong>กำลังโหลดข้อมูล</strong>กรุณารอสักครู่</div>
+      </div>
+
+      <div class="table-footer">
+        <div id="pageInfo">ยังไม่มีข้อมูล</div>
+        <div class="pagination" id="pagination"></div>
+      </div>
+    </section>
+
+    <div class="footer">REPORT KPI MANAGEMENT SYSTEM · ข้อมูลอ้างอิงจาก Google Sheets</div>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const CONFIG = {
+        API_URL: "https://script.google.com/macros/s/AKfycbyDVuHOl48Fke6Sb7D-MsVSUC4lPlOpe03mw63JdNtn9OU5Y1cGW_64Ly15JUA4p4qF/exec",
+        SHEET_NAME: "REPORT_02",
+        ACCESS_KEY: "",
+        PAGE_SIZE: 100,
+        MAX_PAGES: 100,
+        PAGE_ROWS: 20,
+        TIMEOUT_MS: 25000
+      };
+
+      const params = new URLSearchParams(window.location.search);
+      const requestedGroup = (params.get("group") || "").trim();
+      const requestedExcellence = (params.get("excellence") || "").trim();
+
+      const state = {
+        rows: [],
+        headers: [],
+        filteredRows: [],
+        page: 1,
+        year: "all",
+        query: "",
+        loading: false
+      };
+
+      let excellenceChart = null;
+
+  
+      const $ = (id) => document.getElementById(id);
+
+      const aliases = {
+        year: ["Fisyear", "FisYear", "Fiscal_year", "FiscalYear", "ปีงบประมาณ", "ปีงบฯ"],
+        group: ["kpi_Group_Des", "KPI_Group", "Group", "กลุ่มตัวชี้วัด", "กลุ่ม KPI"],
+        excellence: ["Excellence", "Excellence_Des"],
+        section: ["Tsection", "Section", "หน่วยงาน", "กลุ่มงาน"],
+        kpi: ["KPI", "Kpi", "KPI_ID", "รหัสตัวชี้วัด"],
+        description: ["kpi_Des", "KPI_Des", "Description", "รายละเอียดตัวชี้วัด"],
+        numerator: ["Ndiv", "Numerator"],
+        denominator: ["Ndev", "Denominator"],
+        rate: ["Nrate", "Rate", "อัตรา"],
+        evaluate: ["Evaluate", "การประเมิน"],
+        indicate: ["Indicate", "ตัวชี้วัด"],
+        standard: ["Nstd", "Standard", "มาตรฐาน"],
+        formula: ["Formula", "สูตร"],
+        criterion: ["criterion", "Criterion", "เกณฑ์"],
+        result: ["Result", "ผลลัพธ์"],
+        target: ["Target", "เป้าหมาย"],
+        unit: ["Nunit", "Unit", "หน่วย"],
+        percent: ["Percent", "Percentage", "RatePercent", "Rate_Percent", "Npercent", "ร้อยละ", "Rate"],
+        summary: ["Summary", "สรุปผล"]
+      };
+
+      function text(value) {
+        return value === null || value === undefined ? "" : String(value).trim();
+      }
+
+      function normalizeText(value) {
+        return text(value)
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^\p{L}\p{N}]/gu, "");
+      }
+
+      function key(value) {
+        return normalizeText(value);
+      }
+
+      function escapeHTML(value) {
+        return String(value ?? "").replace(/[&<>"']/g, char => ({
+          "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;"
+        })[char]);
+      }
+
+      function getField(row, field) {
+        const names = aliases[field] || [field];
+        const rowKeys = Object.keys(row || {});
+
+        for (const name of names) {
+          if (Object.prototype.hasOwnProperty.call(row, name) && text(row[name])) return row[name];
+        }
+
+        const normalized = new Map(rowKeys.map(k => [key(k), k]));
+        for (const name of names) {
+          const matched = normalized.get(key(name));
+          if (matched !== undefined && text(row[matched])) return row[matched];
+        }
+        return "";
+      }
+
+      function normalizeRow(row, headers, index) {
+        const source = row && typeof row === "object" && !Array.isArray(row)
+          ? row
+          : Object.fromEntries((headers || []).map((header, i) => [header, Array.isArray(row) ? row[i] : ""]));
+
+        return {
+          _index: index,
+          _source: source,
+          year: text(getField(source, "year")),
+          group: text(getField(source, "group")),
+          excellence: text(getField(source, "excellence")),
+          section: text(getField(source, "section")),
+          kpi: text(getField(source, "kpi")),
+          description: text(getField(source, "description")),
+          numerator: text(getField(source, "numerator")),
+          denominator: text(getField(source, "denominator")),
+          rate: text(getField(source, "rate")),
+          evaluate: text(getField(source, "evaluate")),
+          indicate: text(getField(source, "indicate")),
+          standard: text(getField(source, "standard")),
+          formula: text(getField(source, "formula")),
+          criterion: text(getField(source, "criterion")),
+          result: text(getField(source, "result")),
+          target: text(getField(source, "target")),
+          unit: text(getField(source, "unit")),
+          percent: text(getField(source, "percent")),
+          summary: text(getField(source, "summary"))
+        };
+      }
+
+
+/* ============================================================
+ * EXCELLENCE KPI — MODERN HEALTHCARE CHART
+ * Theme: Emerald Green / White / Slate
+ * Library: Chart.js 4.x
+ * ============================================================ */
+
+const excellencePalette = [
+  "#059669", // Emerald
+  "#16a34a", // Green
+  "#0d9488", // Teal
+  "#65a30d", // Lime
+  "#0284c7", // Blue
+  "#d97706", // Amber
+  "#7c3aed", // Violet
+  "#e11d48", // Rose
+  "#64748b", // Slate
+  "#0891b2"  // Cyan
+];
+
+const excellenceNumberFormat = new Intl.NumberFormat("th-TH", {
+  maximumFractionDigits: 2
+});
+
+function excellenceFormatNumber(value) {
+  return excellenceNumberFormat.format(Number(value) || 0);
+}
+
+function excellenceRoundRect(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+
+  ctx.beginPath();
+
+  if (typeof ctx.roundRect === "function") {
+    ctx.roundRect(x, y, width, height, r);
+  } else {
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + width - r, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+    ctx.lineTo(x + width, y + height - r);
+    ctx.quadraticCurveTo(
+      x + width, y + height,
+      x + width - r, y + height
+    );
+    ctx.lineTo(x + r, y + height);
+    ctx.quadraticCurveTo(
+      x, y + height,
+      x, y + height - r
+    );
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+  }
+
+  ctx.closePath();
+}
+
+/* ------------------------------------------------------------
+ * Plugin 1: ป้ายจำนวนรอบกราฟ
+ * ------------------------------------------------------------ */
+
+const valueBadgePlugin = {
+  id: "valueBadgePlugin",
+
+  afterDatasetsDraw(chart) {
+    if (chart.config.type !== "doughnut") return;
+
+    const dataset = chart.data.datasets[0];
+    const meta = chart.getDatasetMeta(0);
+
+    if (!dataset || !meta || meta.hidden) return;
+
+    const { ctx, chartArea } = chart;
+
+    if (!chartArea) return;
+
+    const width = chart.width;
+    const height = chart.height;
+
+    // ซ่อนป้ายรอบกราฟในพื้นที่เล็ก เพื่อป้องกันการทับซ้อน
+    if (width < 300 || height < 240) return;
+
+    ctx.save();
+
+    meta.data.forEach((arc, index) => {
+      const value = Number(dataset.data[index]) || 0;
+
+      if (value <= 0 || arc.hidden) return;
+
+      const angle = (arc.startAngle + arc.endAngle) / 2;
+      const radius = arc.outerRadius + 15;
+
+      let x = arc.x + Math.cos(angle) * radius;
+      let y = arc.y + Math.sin(angle) * radius;
+
+      const badgeWidth = 58;
+      const badgeHeight = 27;
+      const padding = 5;
+
+      // ป้องกันป้ายออกนอก Canvas
+      x = Math.max(
+        badgeWidth / 2 + padding,
+        Math.min(width - badgeWidth / 2 - padding, x)
+      );
+
+      y = Math.max(
+        badgeHeight / 2 + padding,
+        Math.min(height - badgeHeight / 2 - padding, y)
+      );
+
+      // เงา
+      ctx.save();
+      ctx.shadowColor = "rgba(15, 23, 42, 0.10)";
+      ctx.shadowBlur = 9;
+      ctx.shadowOffsetY = 3;
+
+      excellenceRoundRect(
+        ctx,
+        x - badgeWidth / 2,
+        y - badgeHeight / 2,
+        badgeWidth,
+        badgeHeight,
+        10
+      );
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      ctx.restore();
+
+      // เส้นขอบ
+      excellenceRoundRect(
+        ctx,
+        x - badgeWidth / 2,
+        y - badgeHeight / 2,
+        badgeWidth,
+        badgeHeight,
+        10
+      );
+
+      ctx.strokeStyle = "#d1fae5";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // ตัวเลข
+      ctx.fillStyle = "#065f46";
+      ctx.font = '600 10px "Kanit", sans-serif';
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      ctx.fillText(
+        excellenceFormatNumber(value),
+        x,
+        y,
+        badgeWidth - 8
+      );
+    });
+
+    ctx.restore();
+  }
+};
+
+/* ------------------------------------------------------------
+ * Plugin 2: ยอดรวมกลางกราฟ
+ * วาดใหม่ทุกครั้งที่ Chart.js วาดกราฟ
+ * ------------------------------------------------------------ */
+
+const excellenceCenterPlugin = {
+  id: "excellenceCenterPlugin",
+
+  afterDraw(chart) {
+    if (chart.config.type !== "doughnut") return;
+
+    const { ctx, chartArea } = chart;
+
+    if (!chartArea) return;
+
+    const dataset = chart.data.datasets[0];
+
+    if (!dataset) return;
+
+    const meta = chart.getDatasetMeta(0);
+
+    if (!meta || !meta.data.length) return;
+
+    // รวมเฉพาะข้อมูลที่ยังแสดงอยู่ในกราฟ
+    const total = meta.data.reduce((sum, arc, index) => {
+      if (arc.hidden) return sum;
+
+      return sum + (Number(dataset.data[index]) || 0);
+    }, 0);
+
+    const firstArc = meta.data[0];
+    const x = firstArc.x;
+    const y = firstArc.y;
+
+    // ไม่วาดหากตำแหน่งกลางกราฟไม่พร้อมใช้งาน
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+
+    ctx.save();
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    // ป้ายกำกับด้านบน
+    ctx.fillStyle = "#64748b";
+    ctx.font = '500 11px "Kanit", sans-serif';
+    ctx.fillText("รายการทั้งหมด", x, y - 20);
+
+    // ยอดรวม
+    ctx.fillStyle = "#064e3b";
+    ctx.font = '700 25px "Kanit", sans-serif';
+
+    ctx.fillText(
+      excellenceFormatNumber(total),
+      x,
+      y + 7,
+      Math.max(40, chartArea.right - chartArea.left - 24)
+    );
+
+    // คำอธิบายด้านล่าง
+    ctx.fillStyle = "#059669";
+    ctx.font = '500 10px "Kanit", sans-serif';
+    ctx.fillText("EXCELLENCE KPI", x, y + 29);
+
+    ctx.restore();
+  }
+};
+
+/* ลงทะเบียน Plugin เพียงครั้งเดียว */
+if (typeof Chart !== "undefined") {
+  if (!Chart.registry.plugins.get("valueBadgePlugin")) {
+    Chart.register(valueBadgePlugin);
+  }
+
+  if (!Chart.registry.plugins.get("excellenceCenterPlugin")) {
+    Chart.register(excellenceCenterPlugin);
+  }
+}
+
+/* ------------------------------------------------------------
+ * Render Excellence Chart
+ * ------------------------------------------------------------ */
+
+function renderExcellenceChart(rows) {
+  rows = Array.isArray(rows) ? rows : [];
+
+  const summaryCounts = new Map();
+
+  rows.forEach(row => {
+    const summary = (
+      typeof text === "function"
+        ? text(row && row.summary)
+        : String((row && row.summary) ?? "").trim()
+    ) || "ไม่มีข้อมูล";
+
+    summaryCounts.set(
+      summary,
+      (summaryCounts.get(summary) || 0) + 1
+    );
+  });
+
+  // เรียงตามจำนวนจากมากไปน้อย
+  const entries = [...summaryCounts.entries()]
+    .sort((a, b) => b[1] - a[1]);
+
+  const total = rows.length;
+
+  const canvas = $("excellenceChart");
+  const breakdown = $("resultBreakdown");
+  const totalElement = $("chartTotal");
+
+  if (totalElement) {
+    totalElement.textContent =
+      excellenceFormatNumber(total) + " รายการ";
+  }
+
+  /* ----------------------------------------------------------
+   * รายการสรุปด้านข้าง
+   * ---------------------------------------------------------- */
+
+  if (breakdown) {
+    breakdown.innerHTML = entries.length
+      ? entries.map(([summary, count], index) => {
+          const percent = total ? count / total * 100 : 0;
+          const color =
+            excellencePalette[index % excellencePalette.length];
+
+          return `
+            <div class="result-row"
+                 style="
+                   display:flex;
+                   align-items:flex-start;
+                   gap:12px;
+                   padding:14px 12px;
+                   margin-bottom:8px;
+                   background:#ffffff;
+                   border:1px solid #ecfdf5;
+                   border-radius:14px;
+                   transition:background .2s ease;
+                 ">
+
+              <span class="result-color"
+                    style="
+                      display:block;
+                      flex:0 0 10px;
+                      width:10px;
+                      height:10px;
+                      margin-top:6px;
+                      border-radius:50%;
+                      background:${color};
+                      box-shadow:0 0 0 4px ${color}18;
+                    ">
+              </span>
+
+              <div style="flex:1;min-width:0;">
+                <div class="result-label"
+                     style="
+                       color:#0f172a;
+                       font-size:13px;
+                       font-weight:600;
+                       line-height:1.6;
+                       overflow-wrap:anywhere;
+                     ">
+                  ${typeof escapeHTML === "function"
+                    ? escapeHTML(summary)
+                    : summary.replace(/[&<>"']/g, char => ({
+                        "&": "&amp;",
+                        "<": "&lt;",
+                        ">": "&gt;",
+                        '"': "&quot;",
+                        "'": "&#39;"
+                      })[char])}
+                </div>
+
+                <div class="result-detail"
+                     style="
+                       margin-top:4px;
+                       color:#64748b;
+                       font-size:11px;
+                     ">
+                  ${percent.toLocaleString("th-TH", {
+                    minimumFractionDigits:2,
+                    maximumFractionDigits:2
+                  })}% ของรายการทั้งหมด
+                </div>
+
+                <div style="
+                     height:5px;
+                     margin-top:9px;
+                     overflow:hidden;
+                     border-radius:99px;
+                     background:#f1f5f9;
+                   ">
+                  <div style="
+                       width:${percent}%;
+                       height:100%;
+                       border-radius:99px;
+                       background:${color};
+                       transition:width .5s ease;
+                     ">
+                  </div>
+                </div>
+              </div>
+
+              <div class="result-number"
+                   style="
+                     flex:0 0 auto;
+                     color:#0f172a;
+                     text-align:right;
+                     font-size:15px;
+                     font-weight:700;
+                     font-variant-numeric:tabular-nums;
+                   ">
+                ${excellenceFormatNumber(count)}
+
+                <div class="result-percent"
+                     style="
+                       margin-top:3px;
+                       color:${color};
+                       font-size:11px;
+                       font-weight:600;
+                     ">
+                  ${percent.toLocaleString("th-TH", {
+                    maximumFractionDigits:2
+                  })}%
+                </div>
+              </div>
+            </div>
+          `;
+        }).join("")
+      : `
+        <div class="result-empty"
+             style="
+               padding:32px 16px;
+               color:#94a3b8;
+               text-align:center;
+               background:#f8fafc;
+               border:1px dashed #cbd5e1;
+               border-radius:16px;
+             ">
+          <div style="font-size:28px;margin-bottom:8px;">
+            &#128202;
+          </div>
+          ไม่มีข้อมูล Summary
+        </div>
+      `;
+  }
+
+  /* ----------------------------------------------------------
+   * ตรวจสอบ Chart.js และ Canvas
+   * ---------------------------------------------------------- */
+
+  if (!canvas || typeof Chart === "undefined") {
+    console.error(
+      "ไม่พบ Chart.js หรือ Canvas #excellenceChart"
+    );
+    return;
+  }
+
+  /* ทำลายกราฟเดิมก่อนสร้างใหม่ */
+  if (excellenceChart) {
+    excellenceChart.destroy();
+    excellenceChart = null;
+  }
+
+  /* ----------------------------------------------------------
+   * สร้างกราฟ Doughnut
+   * ---------------------------------------------------------- */
+
+  excellenceChart = new Chart(canvas, {
+    type: "doughnut",
+
+    data: {
+      labels: entries.map(([summary]) => summary),
+
+      datasets: [{
+        data: entries.map(([, count]) => count),
+
+        backgroundColor: entries.map(
+          (_, index) =>
+            excellencePalette[
+              index % excellencePalette.length
+            ]
+        ),
+
+        borderColor: "#ffffff",
+        borderWidth: 4,
+        borderRadius: 5,
+        spacing: 3,
+        hoverOffset: 8,
+        offset: 2,
+
+        hoverBorderColor: "#ffffff",
+        hoverBorderWidth: 4
+      }]
+    },
+
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+
+      cutout: "69%",
+
+      layout: {
+        padding: {
+          top: 24,
+          right: 18,
+          bottom: 18,
+          left: 18
+        }
+      },
+
+      animation: {
+        duration: 900,
+        easing: "easeOutQuart",
+        animateRotate: true,
+        animateScale: true
+      },
+
+      interaction: {
+        mode: "nearest",
+        intersect: true
+      },
+
+      plugins: {
+        legend: {
+          display: true,
+          position: "bottom",
+
+          labels: {
+            usePointStyle: true,
+            pointStyle: "circle",
+            boxWidth: 9,
+            boxHeight: 9,
+            padding: 15,
+
+            color: "#475569",
+
+            font: {
+              family: "Kanit",
+              size: 11,
+              weight: "500"
+            }
+          }
+        },
+
+        tooltip: {
+          enabled: true,
+
+          backgroundColor: "#0f172a",
+          titleColor: "#a7f3d0",
+          bodyColor: "#f8fafc",
+
+          padding: 13,
+          cornerRadius: 12,
+          boxPadding: 5,
+          usePointStyle: true,
+          displayColors: true,
+
+          titleFont: {
+            family: "Kanit",
+            size: 12,
+            weight: "600"
+          },
+
+          bodyFont: {
+            family: "Kanit",
+            size: 12,
+            weight: "400"
+          },
+
+          callbacks: {
+            label(context) {
+              const count = Number(context.parsed) || 0;
+              const percent = total
+                ? count / total * 100
+                : 0;
+
+              return (
+                ` ${excellenceFormatNumber(count)} รายการ` +
+                ` (${percent.toLocaleString("th-TH", {
+                  minimumFractionDigits:2,
+                  maximumFractionDigits:2
+                })}%)`
+              );
+            },
+
+            footer(items) {
+              if (!items.length) return "";
+
+              return `รวมทั้งหมด ${excellenceFormatNumber(total)} รายการ`;
+            }
+          }
+        }
+      },
+
+      onHover(event, activeElements) {
+        if (canvas) {
+          canvas.style.cursor =
+            activeElements.length ? "pointer" : "default";
+        }
+      }
+    }
+  });
+}
+
+    function same(a, b) {
+  const x = text(a);
+  const y = text(b);
+
+  if (!x || !y) return false;
+  return key(x) === key(y);
+}
+
+      async function apiRequest(action, requestParams) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), CONFIG.TIMEOUT_MS);
+
+        try {
+          const response = await fetch(CONFIG.API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify({ action, key: CONFIG.ACCESS_KEY, params: requestParams }),
+            redirect: "follow",
+            cache: "no-store",
+            signal: controller.signal
+          });
+
+          const raw = await response.text();
+
+          if (!response.ok) throw new Error("API ตอบกลับ HTTP " + response.status);
+          let data;
+          try { data = JSON.parse(raw); }
+          catch (_) { throw new Error("API ส่งข้อมูลกลับมาไม่ใช่ JSON กรุณาตรวจสอบ Code.gs"); }
+
+          if (!data || typeof data !== "object") throw new Error("รูปแบบข้อมูลจาก API ไม่ถูกต้อง");
+          if (data.ok === false || data.success === false || data.error) {
+            throw new Error(String(data.message || data.error || "Google Apps Script ปฏิเสธคำขอ"));
+          }
+
+          return data;
+        } catch (error) {
+          if (error.name === "AbortError") throw new Error("API ไม่ตอบกลับภายใน " + (CONFIG.TIMEOUT_MS / 1000) + " วินาที");
+          if (error instanceof TypeError) throw new Error("เชื่อมต่อ API ไม่สำเร็จ ตรวจสอบ URL และสิทธิ์ Web App");
+          throw error;
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+
+      function showStatus(message, type = "success", busy = false) {
+        const box = $("statusBox");
+        box.className = "status" + (type === "error" ? " error" : type === "warn" ? " warn" : "");
+        box.innerHTML = (busy ? '<span class="spinner"></span>' : "") + escapeHTML(message);
+        box.hidden = !message;
+      }
+
+      async function fetchAllRows() {
+        const allRows = [];
+        let headers = [];
+        let expectedTotal = null;
+        let expectedPages = null;
+
+        for (let page = 1; page <= CONFIG.MAX_PAGES; page++) {
+          showStatus("กำลังโหลดข้อมูลจากชีต " + CONFIG.SHEET_NAME + " (หน้า " + page + ")", "success", true);
+
+          const response = await apiRequest("data", {
+            sheet: CONFIG.SHEET_NAME,
+            page,
+            pageSize: CONFIG.PAGE_SIZE,
+            limit: CONFIG.PAGE_SIZE
+          });
+
+          if (Array.isArray(response.headers)) headers = response.headers;
+          else if (Array.isArray(response.header)) headers = response.header;
+
+          const rows = Array.isArray(response.rows) ? response.rows
+            : Array.isArray(response.data) ? response.data : [];
+
+          if (expectedTotal === null && response.total !== undefined && Number.isFinite(Number(response.total))) {
+            expectedTotal = Number(response.total);
+          }
+          if (expectedPages === null) {
+            const count = Number(response.totalPages ?? response.pages ?? 0);
+            if (Number.isFinite(count) && count > 0) expectedPages = count;
+          }
+
+          if (!rows.length) break;
+          allRows.push(...rows);
+
+          if (expectedTotal !== null && allRows.length >= expectedTotal) break;
+          if (expectedPages !== null && page >= expectedPages) break;
+          if (rows.length < CONFIG.PAGE_SIZE) break;
+        }
+
+        return { headers, rows: allRows };
+      }
+
+      function getFilteredRows() {
+  const q = text($("searchInput").value).toLowerCase();
+  const selectedYear = text($("yearFilter").value) || "all";
+
+  const hasGroupFilter = !!text(requestedGroup) && text(requestedGroup) !== "all";
+  const hasExcellenceFilter = !!text(requestedExcellence) && text(requestedExcellence) !== "all";
+
+  const groupFilterValue = text(requestedGroup);
+  const excellenceFilterValue = text(requestedExcellence);
+
+  const groupExists = hasGroupFilter
+    ? state.rows.some(r => same(r.group, groupFilterValue) || same(r.excellence, groupFilterValue))
+    : true;
+
+  const excellenceExists = hasExcellenceFilter
+    ? state.rows.some(r => same(r.excellence, excellenceFilterValue))
+    : true;
+
+  return state.rows.filter(row => {
+    const matchesGroup =
+      !hasGroupFilter || !groupExists ||
+      same(row.group, groupFilterValue) ||
+      same(row.excellence, groupFilterValue);
+
+    const matchesExcellence =
+      !hasExcellenceFilter || !excellenceExists ||
+      same(row.excellence, excellenceFilterValue);
+
+    const matchesYear =
+      selectedYear === "all" || same(row.year, selectedYear);
+
+    const haystack = [
+      row.kpi,
+      row.description,
+      row.group,
+      row.excellence,
+      row.section,
+      row.summary,
+      row.target,
+      row.result,
+      row.percent,
+      row.rate
+    ].join(" ").toLowerCase();
+
+    const matchesQuery = !q || haystack.includes(q);
+
+    return matchesGroup && matchesExcellence && matchesYear && matchesQuery;
+  });
+}
+      function uniqueNonBlank(values) {
+        const found = new Map();
+        values.forEach(value => {
+          const label = text(value);
+          if (label) found.set(key(label), label);
+        });
+        return [...found.values()];
+      }
+
+      function updateYearOptions() {
+        const select = $("yearFilter");
+        const years = uniqueNonBlank(state.rows.map(row => row.year))
+          .sort((a, b) => Number(b) - Number(a));
+
+        select.innerHTML =
+          '<option value="all">ทุกปีงบประมาณ</option>' +
+          years.map(year => '<option value="' + escapeHTML(year) + '">' + escapeHTML(year) + '</option>').join("");
+      }
+
+      function updateTitle() {
+        const title = requestedExcellence
+          ? "สรุป Excellence: " + requestedExcellence
+          : requestedGroup ? "สรุป Excellence: " + requestedGroup : "สรุป Excellence";
+
+        $("pageTitle").textContent = title;
+        $("pageSubtitle").textContent = requestedGroup
+          ? "กลุ่มตัวชี้วัด: " + requestedGroup + (requestedExcellence ? " · Excellence: " + requestedExcellence : "")
+          : requestedExcellence ? "แสดงรายการที่อยู่ใน Excellence ที่เลือก" : "รายละเอียดตัวชี้วัดจากฐานข้อมูล REPORT_02";
+
+        $("crumbGroup").textContent = requestedGroup ? "› " + requestedGroup : "";
+        document.title = title + " | REPORT KPI Dashboard";
+      }
+
+      function renderStats(rows) {
+        $("totalKpi").textContent = rows.length.toLocaleString("th-TH");
+        $("totalExcellence").textContent = uniqueNonBlank(rows.map(r => r.excellence)).length.toLocaleString("th-TH");
+        $("totalSection").textContent = uniqueNonBlank(rows.map(r => r.section)).length.toLocaleString("th-TH");
+        $("totalSummary").textContent = rows.filter(r => r.summary).length.toLocaleString("th-TH");
+      }
+
+      function cell(value, className = "") {
+        return '<td' + (className ? ' class="' + className + '"' : '') + '>' + escapeHTML(text(value) || "—") + '</td>';
+      }
+
+      function renderTable() {
+        const rows = state.filteredRows;
+        const total = rows.length;
+        const pages = Math.max(1, Math.ceil(total / CONFIG.PAGE_ROWS));
+        state.page = Math.min(Math.max(1, state.page), pages);
+
+        const start = (state.page - 1) * CONFIG.PAGE_ROWS;
+        const pageRows = rows.slice(start, start + CONFIG.PAGE_ROWS);
+
+        $("tableCaption").textContent = "ชีต " + CONFIG.SHEET_NAME + " · " + total.toLocaleString("th-TH") + " รายการ";
+
+        if (!pageRows.length) {
+          $("tableContainer").innerHTML =
+            '<div class="empty"><strong>ไม่พบข้อมูล</strong>ไม่พบตัวชี้วัดที่ตรงกับตัวกรอง กรุณาลองล้างตัวกรองหรือเปลี่ยนคำค้นหา</div>';
+        } else {
+          const body = pageRows.map(row => {
+            return "<tr>" +
+              '<td><span class="kpi-code">' + escapeHTML(row.kpi || "—") + "</span></td>" +
+              cell(row.description, "desc") +
+              cell(row.group) +
+              cell(row.excellence) +
+              cell(row.section) +
+              cell(row.year) +
+              cell(row.target, "numeric") +
+              cell(row.result, "numeric") +
+              cell(row.percent || row.rate, "numeric") +
+              cell(row.unit) +
+              cell(row.summary, "summary-cell") +
+              "</tr>";
+          }).join("");
+
+          $("tableContainer").innerHTML =
+            '<table><thead><tr><th>รหัส KPI</th><th>รายละเอียดตัวชี้วัด</th><th>กลุ่มตัวชี้วัด</th><th>Excellence</th><th>หน่วยงาน</th><th>ปีงบฯ</th><th>เป้าหมาย</th><th>ผลลัพธ์</th><th>ร้อยละ / อัตรา</th><th>หน่วย</th><th>สรุปผล</th></tr></thead><tbody>' +
+            body + "</tbody></table>";
+        }
+
+        const shownStart = total ? start + 1 : 0;
+        const shownEnd = Math.min(start + CONFIG.PAGE_ROWS, total);
+        $("pageInfo").textContent = "แสดง " + shownStart.toLocaleString("th-TH") + "–" + shownEnd.toLocaleString("th-TH") + " จาก " + total.toLocaleString("th-TH") + " รายการ";
+        renderPagination(pages);
+      }
+
+      function renderPagination(totalPages) {
+        const container = $("pagination");
+        const buttons = [];
+
+        buttons.push('<button class="page-btn" data-page="' + (state.page - 1) + '"' + (state.page <= 1 ? " disabled" : "") + '>‹</button>');
+
+        let from = Math.max(1, state.page - 2);
+        let to = Math.min(totalPages, from + 4);
+        from = Math.max(1, to - 4);
+
+        for (let p = from; p <= to; p++) {
+          buttons.push(
+            '<button class="page-btn' + (p === state.page ? " active" : "") + '" data-page="' + p + '"' +
+            (p === state.page ? ' aria-current="page"' : "") + ">" + p + "</button>"
+          );
+        }
+
+        buttons.push('<button class="page-btn" data-page="' + (state.page + 1) + '"' + (state.page >= totalPages ? " disabled" : "") + '>›</button>');
+        container.innerHTML = buttons.join("");
+
+        container.querySelectorAll("button[data-page]").forEach(button => {
+          button.addEventListener("click", () => {
+            const next = Number(button.dataset.page);
+            if (next >= 1 && next <= totalPages) {
+              state.page = next;
+              renderTable();
+              window.scrollTo({ top: $("tableContainer").getBoundingClientRect().top + window.scrollY - 90, behavior: "smooth" });
+            }
+          });
+        });
+      }
+
+      function applyFilters() {
+  state.year = $("yearFilter").value || "all";
+  state.query = $("searchInput").value || "";
+  state.page = 1;
+
+  state.filteredRows = getFilteredRows();
+
+  renderStats(state.filteredRows);
+  renderExcellenceChart(state.filteredRows);
+  renderTable();
+
+  const total = state.rows.length;
+  const filtered = state.filteredRows.length;
+
+  if (filtered > 0) {
+    showStatus(
+      "โหลดข้อมูลสำเร็จ " +
+      total.toLocaleString("th-TH") +
+      " รายการ · พบ " +
+      filtered.toLocaleString("th-TH") +
+      " รายการตามตัวกรอง"
+    );
+  } else if (total > 0) {
+    showStatus(
+      "ไม่มีข้อมูลตามเงื่อนไขที่เลือก กรุณาลองล้างตัวกรองหรือเปลี่ยนคำค้นหา",
+      "warn"
+    );
+  } else {
+    showStatus(
+      "ไม่พบข้อมูลในชีต " + CONFIG.SHEET_NAME,
+      "warn"
+    );
+  }
+}
+      function exportCSV() {
+        const rows = state.filteredRows;
+        if (!rows.length) {
+          showStatus("ไม่มีข้อมูลสำหรับส่งออก", "warn");
+          return;
+        }
+
+        const headers = ["KPI", "kpi_Des", "kpi_Group_Des", "Excellence", "Tsection", "Fisyear", "Target", "Result", "Percent", "Nunit", "Summary"];
+        const records = rows.map(r => [r.kpi, r.description, r.group, r.excellence, r.section, r.year, r.target, r.result, r.percent || r.rate, r.unit, r.summary]);
+
+        const quote = value => '"' + String(value ?? "").replace(/"/g, '""') + '"';
+        const csv = "\uFEFF" + [headers, ...records].map(record => record.map(quote).join(",")).join("\r\n");
+
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "REPORT_Excellence_" + (requestedGroup ? requestedGroup.replace(/[^\p{L}\p{N}_-]+/gu, "_") : "all") + ".csv";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      async function loadData() {
+        if (state.loading) return;
+        state.loading = true;
+        $("reloadButton").disabled = true;
+        $("tableContainer").innerHTML =
+          '<div class="empty"><strong>กำลังโหลดข้อมูล</strong><span class="spinner"></span>กำลังเชื่อมต่อ Google Apps Script</div>';
+
+        try {
+          const result = await fetchAllRows();
+          state.headers = result.headers;
+          state.rows = result.rows.map((row, index) => normalizeRow(row, result.headers, index));
+
+          console.info("[Excellence] URL filters:", { group: requestedGroup, excellence: requestedExcellence });
+          console.info("[Excellence] Loaded rows:", state.rows.length);
+          console.info("[Excellence] Sample group values:", uniqueNonBlank(state.rows.map(row => row.group)).slice(0, 30));
+          console.info("[Excellence] Sample Excellence values:", uniqueNonBlank(state.rows.map(row => row.excellence)).slice(0, 30));
+
+          updateYearOptions();
+          applyFilters();
+        } catch (error) {
+          console.error("[Excellence] Load failed:", error);
+          showStatus(error.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล", "error");
+          $("tableContainer").innerHTML =
+            '<div class="empty"><strong>โหลดข้อมูลไม่สำเร็จ</strong>' +
+            escapeHTML(error.message || "กรุณาลองใหม่อีกครั้ง") +
+            '<br><br><button class="btn btn-primary" id="retryButton" type="button">ลองโหลดอีกครั้ง</button></div>';
+
+          const retry = $("retryButton");
+          if (retry) retry.addEventListener("click", loadData);
+
+          ["totalKpi", "totalExcellence", "totalSection", "totalSummary"].forEach(id => $(id).textContent = "—");
+          $("pageInfo").textContent = "ยังไม่มีข้อมูล";
+          $("pagination").innerHTML = "";
+        } finally {
+          state.loading = false;
+          $("reloadButton").disabled = false;
+        }
+      }
+
+      $("searchButton").addEventListener("click", applyFilters);
+      $("searchInput").addEventListener("keydown", event => {
+        if (event.key === "Enter") applyFilters();
+      });
+      $("yearFilter").addEventListener("change", applyFilters);
+      $("clearButton").addEventListener("click", () => {
+        $("yearFilter").value = "all";
+        $("searchInput").value = "";
+        applyFilters();
+      });
+      $("reloadButton").addEventListener("click", loadData);
+      $("exportButton").addEventListener("click", exportCSV);
+
+      updateTitle();
+      loadData();
+    })();
+  </script>
+</body>
+</html>
