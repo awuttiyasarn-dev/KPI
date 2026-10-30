@@ -15,8 +15,10 @@ const CONFIG = {
   PAGE_SIZE: 100,
   MAX_PAGES: 100,
   TABLE_PAGE_SIZE: 15,
-  BACK_URL: "./index.html",
-  CASE_URL: "./KPI_CASE.html",
+
+  BACK_URL: "../index.html",
+  CASE_URL: "../KPI_CASE.html",
+
   EXCLUDED_STATUS: ["ระหว่างดำเนินการ"]
 };
 
@@ -1519,28 +1521,44 @@ $("kpiTableBody").addEventListener("click", event => {
 
   if (!row) return;
 
-  const params = new URLSearchParams({
-    kpi: String(fieldValue(row, "kpi") || ""),
-    year: String(fieldValue(row, "year") || ""),
-    group: String(fieldValue(row, "group") || ""),
-    excellence: String(fieldValue(row, "excellence") || ""),
-    section: String(fieldValue(row, "section") || ""),
-    description: String(fieldValue(row, "description") || "")
-  });
+  // สร้าง URL จากตำแหน่งไฟล์ Dashboard
+  const url = new URL(
+    CONFIG.CASE_URL,
+    window.location.href
+  );
 
-  window.location.href =
-    `${CONFIG.CASE_URL}?${params.toString()}`;
-});
+  // ส่งข้อมูล KPI ไปยังหน้ารายละเอียด
+  url.searchParams.set(
+    "kpi",
+    fieldValue(row, "kpi") || ""
+  );
 
-// Detail dialog
-$("detailClose").addEventListener("click", () => {
-  $("detailDialog").close();
-});
+  url.searchParams.set(
+    "year",
+    fieldValue(row, "year") || ""
+  );
 
-$("detailDialog").addEventListener("click", event => {
-  if (event.target === $("detailDialog")) {
-    $("detailDialog").close();
-  }
+  url.searchParams.set(
+    "group",
+    fieldValue(row, "group") || ""
+  );
+
+  url.searchParams.set(
+    "excellence",
+    fieldValue(row, "excellence") || ""
+  );
+
+  url.searchParams.set(
+    "section",
+    fieldValue(row, "section") || ""
+  );
+
+  url.searchParams.set(
+    "description",
+    fieldValue(row, "description") || ""
+  );
+
+  window.location.href = url.href;
 });
 
 // Main filters
