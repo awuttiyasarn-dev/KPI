@@ -17,11 +17,10 @@ const CONFIG = {
   TABLE_PAGE_SIZE: 15,
 
   BACK_URL: "../index.html",
-  CASE_URL: "../KPI_CASE.html",
+  CASE_URL: "./KPI_CASE.html",
 
   EXCLUDED_STATUS: ["ระหว่างดำเนินการ"]
 };
-
 const STATE = {
   allRows: [],
   filteredRows: [],
