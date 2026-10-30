@@ -1163,7 +1163,7 @@ function renderGroupChart(rows) {
 
         // คลิกตรงกลางกราฟ → เปิด KPI.html
         if (distance <= innerRadius) {
-          window.location.href = "KPI.html";
+          window.location.href = "/KPI.html";
           return;
         }
 
@@ -1221,14 +1221,269 @@ function renderGroupChart(rows) {
      14. TABLE
   ========================================================== */
 
-  function badgeClass(row) {
-    const result = numberValue(row.result);
-    const target = numberValue(row.target);
+  /* ==========================================================
+     14. TABLE  (ตารางสวยขึ้น + ตัวกรองแบบ Excel)
+  ========================================================== */
 
-    return result === null || target === null
-      ? "rd-badge-neutral"
-      : "rd-badge-blue";
+  /* ---------- CSS ของตาราง (ฉีดเข้าหน้าอัตโนมัติ) ---------- */
+  const TABLE_CSS = `
+#reportKpiDashboard .rd-table-wrapper{max-height:620px;overflow:auto}
+#reportKpiDashboard .rd-table thead th{z-index:2}
+#reportKpiDashboard .rd-table-toolbar{align-items:flex-end;gap:10px}
+#reportKpiDashboard .rdx-clear-btn{height:43px;padding:0 14px}
+.rdx-th{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.rdx-btn{width:22px;height:22px;flex-shrink:0;padding:0;border:1px solid #d2e1d6;border-radius:6px;background:#fff;color:#20764a;font-size:11px;line-height:1;cursor:pointer;transition:background .15s,border-color .15s}
+.rdx-btn:hover{background:#e8f5ec;border-color:#a8d3b7}
+.rdx-btn.active{background:#d97706;border-color:#d97706;color:#fff}
+.rdx-pct{display:grid;gap:5px;min-width:96px}
+.rdx-bar{display:block;height:5px;border-radius:99px;background:#e3ece7;overflow:hidden}
+.rdx-bar i{display:block;height:100%;border-radius:99px;background:#20764a}
+.rdx-bar.low i{background:#dc4545}
+.rdx-pop{position:fixed;z-index:9999;width:270px;padding:12px;background:#fff;border:1px solid #e0eae3;border-radius:16px;box-shadow:0 14px 34px rgba(24,67,43,.16);font:13px/1.6 "IBM Plex Sans Thai","Inter",sans-serif;color:#172b22}
+.rdx-pop input[type=search]{width:100%;height:38px;padding:0 10px;margin-bottom:8px;border:1px solid #d2e1d6;border-radius:10px;background:#fff;font:inherit}
+.rdx-pop input[type=search]:focus{outline:none;border-color:#278a68;box-shadow:0 0 0 3px rgba(39,138,104,.09)}
+.rdx-list{max-height:240px;overflow-y:auto;margin:4px 0 10px;border-top:1px solid #edf2ee;padding-top:4px}
+.rdx-item{display:flex;align-items:center;gap:8px;padding:6px 4px;border-radius:8px;cursor:pointer}
+.rdx-item:hover{background:#f3faf5}
+.rdx-item span{flex:1;min-width:0;overflow-wrap:anywhere}
+.rdx-item em{font-style:normal;color:#829187;font-size:12px}
+.rdx-actions{display:flex;justify-content:flex-end;gap:8px}
+.rdx-ghost,.rdx-ok{padding:7px 14px;border-radius:10px;font:inherit;cursor:pointer}
+.rdx-ghost{border:1px solid #d2e1d6;background:#fff;color:#20764a}
+.rdx-ghost:hover{background:#f3faf5}
+.rdx-ok{border:0;background:#20764a;color:#fff}
+.rdx-ok:hover:not(:disabled){background:#145c38}
+.rdx-ok:disabled{opacity:.5;cursor:not-allowed}
+`;
+
+  /* ---------- ตัวกรองรายคอลัมน์ ---------- */
+
+  const TABLE_COLS = [
+    { key: "year",        label: "ปีงบประมาณ" },
+    { key: "group",       label: "กลุ่มตัวชี้วัด" },
+    { key: "description", label: "ตัวชี้วัด / รายละเอียด" },
+    { key: "result",      label: "ผลลัพธ์" },
+    { key: "target",      label: "เป้าหมาย" },
+    { key: "percent",     label: "ร้อยละ" },
+    { key: "summary",     label: "สรุปผล" }
+  ];
+
+  let colFilters = {};   // { key: Set(ค่าที่เลือก) }
+  let colPopup = null;
+  let tableGlobalsBound = false;
+
+  function withUnit(value, unit) {
+    return isBlank(value)
+      ? ""
+      : `${formatNumber(value)}${unit ? ` ${unit}` : ""}`;
   }
+
+  // ค่าที่ใช้กรอง = ข้อความเดียวกับที่แสดงในตาราง
+  function colValue(row, key) {
+    switch (key) {
+      case "year":        return normalizeText(row.year);
+      case "group":       return normalizeText(row.group);
+      case "description": return [row.kpi, row.description]
+                            .map(normalizeText).filter(Boolean).join(" – ");
+      case "result":      return withUnit(row.result, row.unit);
+      case "target":      return withUnit(row.target, row.unit);
+      case "percent":     return isBlank(row.percent) ? "" : formatRate(row.percent);
+      case "summary":     return normalizeText(row.summary);
+      default:            return "";
+    }
+  }
+
+  // แถวที่ผ่านตัวกรองคอลัมน์อื่นทั้งหมด (ยกเว้นคอลัมน์ exceptKey) แบบเดียวกับ Excel
+  function rowsExcept(exceptKey) {
+    return STATE.filteredRows.filter((row) =>
+      TABLE_COLS.every((col) =>
+        col.key === exceptKey ||
+        !colFilters[col.key] ||
+        colFilters[col.key].has(colValue(row, col.key))
+      )
+    );
+  }
+
+  function refreshColumnFilters() {
+    STATE.page = 1;
+    renderTable(STATE.filteredRows);
+  }
+
+  function closeColPopup() {
+    if (colPopup) {
+      colPopup.remove();
+      colPopup = null;
+    }
+  }
+
+  function openColPopup(btn) {
+    closeColPopup();
+
+    const key = btn.dataset.col;
+    const counts = new Map();
+
+    rowsExcept(key).forEach((row) => {
+      const v = colValue(row, key);
+      counts.set(v, (counts.get(v) || 0) + 1);
+    });
+
+    const values = [...counts.keys()].sort((a, b) =>
+      a.localeCompare(b, "th", { numeric: true })
+    );
+
+    const current = colFilters[key];
+    const selected = new Set(
+      current ? values.filter((v) => current.has(v)) : values
+    );
+    const labelOf = (v) => (v === "" ? "(ว่าง)" : v);
+
+    colPopup = document.createElement("div");
+    colPopup.className = "rdx-pop";
+    colPopup.dataset.col = key;
+    colPopup.innerHTML = `
+      <input type="search" placeholder="ค้นหา" aria-label="ค้นหาในตัวกรอง">
+      <label class="rdx-item"><input type="checkbox" class="rdx-all"> <span><b>(เลือกทั้งหมด)</b></span></label>
+      <div class="rdx-list"></div>
+      <div class="rdx-actions">
+        <button type="button" class="rdx-ghost rdx-pop-clear">ล้างตัวกรอง</button>
+        <button type="button" class="rdx-ok">ตกลง</button>
+      </div>`;
+    document.body.appendChild(colPopup);
+
+    const popup = colPopup;
+    const search = popup.querySelector("input[type=search]");
+    const list = popup.querySelector(".rdx-list");
+    const all = popup.querySelector(".rdx-all");
+    const ok = popup.querySelector(".rdx-ok");
+
+    const shown = () => {
+      const q = search.value.trim().toLocaleLowerCase("th");
+      return values.filter((v) => labelOf(v).toLocaleLowerCase("th").includes(q));
+    };
+
+    function draw() {
+      const visible = shown();
+
+      list.innerHTML = visible.length
+        ? visible.map((v) => `
+            <label class="rdx-item">
+              <input type="checkbox" data-v="${escapeHTML(v)}" ${selected.has(v) ? "checked" : ""}>
+              <span>${escapeHTML(labelOf(v))}</span>
+              <em>${formatNumber(counts.get(v), 0)}</em>
+            </label>`).join("")
+        : '<div style="padding:14px;text-align:center;color:#6b7d75">ไม่พบรายการ</div>';
+
+      const on = visible.filter((v) => selected.has(v)).length;
+      all.checked = visible.length > 0 && on === visible.length;
+      all.indeterminate = on > 0 && on < visible.length;
+      ok.disabled = selected.size === 0;
+    }
+
+    list.addEventListener("change", (event) => {
+      const box = event.target.closest("input[data-v]");
+      if (!box) return;
+      box.checked ? selected.add(box.dataset.v) : selected.delete(box.dataset.v);
+      draw();
+    });
+
+    all.addEventListener("change", () => {
+      shown().forEach((v) => (all.checked ? selected.add(v) : selected.delete(v)));
+      draw();
+    });
+
+    search.addEventListener("input", draw);
+
+    popup.querySelector(".rdx-pop-clear").addEventListener("click", () => {
+      delete colFilters[key];
+      closeColPopup();
+      refreshColumnFilters();
+    });
+
+    ok.addEventListener("click", () => {
+      if (selected.size === values.length) delete colFilters[key];
+      else colFilters[key] = new Set(selected);
+      closeColPopup();
+      refreshColumnFilters();
+    });
+
+    draw();
+
+    const rect = btn.getBoundingClientRect();
+    popup.style.top =
+      Math.max(8, Math.min(rect.bottom + 6, innerHeight - popup.offsetHeight - 8)) + "px";
+    popup.style.left =
+      Math.max(8, Math.min(rect.left, innerWidth - popup.offsetWidth - 8)) + "px";
+
+    search.focus();
+  }
+
+  // เรียกครั้งเดียวหลังแทรก dashboard.html ลงหน้าแล้ว (ดู bindEvents)
+  function initTableFilters() {
+    if (!document.getElementById("rdxTableStyle")) {
+      const style = document.createElement("style");
+      style.id = "rdxTableStyle";
+      style.textContent = TABLE_CSS;
+      document.head.appendChild(style);
+    }
+
+    const headers = document.querySelectorAll("#rdKpiTable thead th");
+    if (!headers.length || headers[0].querySelector(".rdx-btn")) return;
+
+    headers.forEach((th, index) => {
+      const col = TABLE_COLS[index];
+      if (!col) return;
+
+      th.innerHTML = `
+        <div class="rdx-th">
+          <span>${escapeHTML(th.textContent.trim() || col.label)}</span>
+          <button type="button" class="rdx-btn" data-col="${col.key}"
+            aria-label="ตัวกรองคอลัมน์ ${escapeHTML(col.label)}" aria-haspopup="true">▾</button>
+        </div>`;
+    });
+
+    document.querySelector("#rdKpiTable thead").addEventListener("click", (event) => {
+      const btn = event.target.closest(".rdx-btn");
+      if (!btn) return;
+
+      event.stopPropagation();
+
+      colPopup && colPopup.dataset.col === btn.dataset.col
+        ? closeColPopup()
+        : openColPopup(btn);
+    });
+
+    const toolbar = document.querySelector(".rd-table-toolbar");
+
+    if (toolbar) {
+      const clear = document.createElement("button");
+      clear.type = "button";
+      clear.className = "rd-text-btn rdx-clear-btn";
+      clear.textContent = "ล้างตัวกรองคอลัมน์";
+      clear.addEventListener("click", () => {
+        colFilters = {};
+        closeColPopup();
+        refreshColumnFilters();
+      });
+      toolbar.appendChild(clear);
+    }
+
+    if (!tableGlobalsBound) {
+      tableGlobalsBound = true;
+
+      document.addEventListener("click", (event) => {
+        if (colPopup && !colPopup.contains(event.target)) closeColPopup();
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") closeColPopup();
+      });
+      window.addEventListener("scroll", (event) => {
+        if (colPopup && !colPopup.contains(event.target)) closeColPopup();
+      }, true);
+      window.addEventListener("resize", closeColPopup);
+    }
+  }
+
+  /* ---------- วาดตาราง ---------- */
 
   function renderEmptyTable(message) {
     const body = $("rdKpiTableBody");
@@ -1251,7 +1506,7 @@ function renderGroupChart(rows) {
 
     if (number === null) return text;
 
-    // แสดง % เฉพาะเมื่อค่าต้นฉบับมี % หรือ field บ่งบอกว่าเป็นเปอร์เซ็นต์
+    // แสดง % เฉพาะเมื่อค่าต้นฉบับมี %
     return text.includes("%")
       ? `${formatNumber(number)}%`
       : formatNumber(number);
@@ -1270,9 +1525,52 @@ function renderGroupChart(rows) {
     if (next) next.disabled = page >= totalPages;
   }
 
-  function renderTable(rows) {
+  function statusPillClass(text) {
+    if (text === "ผ่าน") return "success";
+    if (text === "ไม่ผ่าน") return "danger";
+    if (text === "ยังไม่ได้กรอกข้อมูล") return "warning";
+    return "";
+  }
+
+  function badgeClass(row) {
+    const result = numberValue(row.result);
+    const target = numberValue(row.target);
+
+    return result === null || target === null
+      ? "rd-badge-neutral"
+      : "rd-badge-blue";
+  }
+
+  function percentCell(row) {
+    const text = formatRate(row.percent);
+    const number = numberValue(row.percent);
+
+    // แสดงแถบเฉพาะค่าที่อยู่ในช่วง 0–100
+    if (number === null || number < 0 || number > 100) {
+      return escapeHTML(text);
+    }
+
+    return `
+      <div class="rdx-pct">
+        <span>${escapeHTML(text)}</span>
+        <b class="rdx-bar ${number < 50 ? "low" : ""}"><i style="width:${number}%"></i></b>
+      </div>`;
+  }
+
+  function renderTable(sourceRows) {
     const body = $("rdKpiTableBody");
     if (!body) return;
+
+    // กรองตามตัวกรองรายคอลัมน์ (ตัวกรองด้านบนทำมาแล้วใน sourceRows)
+    const rows = (Array.isArray(sourceRows) ? sourceRows : []).filter((row) =>
+      TABLE_COLS.every((col) =>
+        !colFilters[col.key] || colFilters[col.key].has(colValue(row, col.key))
+      )
+    );
+
+    document.querySelectorAll(".rdx-btn").forEach((btn) =>
+      btn.classList.toggle("active", !!colFilters[btn.dataset.col])
+    );
 
     setText("rdVisibleCount", formatNumber(rows.length, 0));
 
@@ -1299,14 +1597,7 @@ function renderGroupChart(rows) {
     body.innerHTML = pageRows.map((row) => {
       const title = row.kpi || "ไม่ระบุรหัส KPI";
       const description = row.description || "";
-
-      const resultText = isBlank(row.result)
-        ? "—"
-        : `${formatNumber(row.result)}${row.unit ? ` ${row.unit}` : ""}`;
-
-      const targetText = isBlank(row.target)
-        ? "—"
-        : `${formatNumber(row.target)}${row.unit ? ` ${row.unit}` : ""}`;
+      const status = normalizeText(row.summary);
 
       return `
         <tr data-rd-id="${escapeHTML(row._id)}">
@@ -1315,20 +1606,17 @@ function renderGroupChart(rows) {
 
           <td>
             <div class="rd-kpi-name">${escapeHTML(title)}</div>
-            ${
-              description
-                ? `<span class="rd-kpi-description">${escapeHTML(description)}</span>`
-                : ""
-            }
+            ${description
+              ? `<span class="rd-kpi-description">${escapeHTML(description)}</span>`
+              : ""}
           </td>
 
-          <td class="rd-number">
-            <span class="rd-badge ${badgeClass(row)}">${escapeHTML(resultText)}</span>
-          </td>
-
-          <td class="rd-number">${escapeHTML(targetText)}</td>
-          <td class="rd-number">${escapeHTML(formatRate(row.percent))}</td>
-          <td>${escapeHTML(row.summary || "—")}</td>
+          <td class="rd-number"><span class="rd-badge ${badgeClass(row)}">${escapeHTML(withUnit(row.result, row.unit) || "—")}</span></td>
+          <td class="rd-number">${escapeHTML(withUnit(row.target, row.unit) || "—")}</td>
+          <td class="rd-number">${percentCell(row)}</td>
+          <td>${status
+            ? `<span class="rd-status-badge ${statusPillClass(status)}">${escapeHTML(status)}</span>`
+            : "—"}</td>
         </tr>
       `;
     }).join("");
@@ -1380,6 +1668,7 @@ function renderGroupChart(rows) {
   }
 
   function bindEvents() {
+     initTableFilters();   // ← เพิ่มบรรทัดนี้
     [
       "rdFilterYear",
       "rdFilterGroup",
