@@ -1014,6 +1014,14 @@ function openExcellencePage(selectedGroup) {
 
   // จำนวนตัวชี้วัดตามกลุ่ม (คอลัมน์ kpi_Group_Des)
   
+
+/* ============================================================
+ * จำนวนตัวชี้วัดตามกลุ่ม (kpi_Group_Des)
+ * - คลิกตรงกลางกราฟ: เปิด KPI.html
+ * - คลิกชิ้นกราฟ: เปิด Excellence.html ตามกลุ่ม
+ * - รวมกลุ่มที่เกิน GROUP_MAX_SLICES เป็น "อื่น ๆ"
+ * ============================================================ */
+
 function renderGroupChart(rows) {
   const canvas = $("rdGroupChart");
   if (!canvas) return;
@@ -1022,15 +1030,21 @@ function renderGroupChart(rows) {
 
   const counts = new Map();
 
-  rows.forEach((row) => {
+  // นับจำนวนตัวชี้วัดแยกตามกลุ่ม
+  (Array.isArray(rows) ? rows : []).forEach((row) => {
     const label = normalizeText(row.group) || GROUP_EMPTY_LABEL;
     counts.set(label, (counts.get(label) || 0) + 1);
   });
 
+  // กรณีไม่มีข้อมูล
   if (!counts.size) {
-    setText("rdGroupChartNote", "ไม่มีข้อมูลกลุ่มตัวชี้วัดสำหรับแสดงกราฟ");
+    setText(
+      "rdGroupChartNote",
+      "ไม่มีข้อมูลกลุ่มตัวชี้วัดสำหรับแสดงกราฟ"
+    );
 
     const summary = $("rdExcellenceSummary");
+
     if (summary) {
       summary.innerHTML = `
         <div class="rd-excellence-empty">
@@ -1038,13 +1052,16 @@ function renderGroupChart(rows) {
         </div>
       `;
     }
+
     return;
   }
 
+  // เรียงจำนวนจากมากไปน้อย
   let entries = [...counts.entries()].sort(
     (a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "th")
   );
 
+  // เก็บกลุ่มจริงสำหรับใช้แสดงผล
   const groupMap = new Map();
 
   entries.forEach(([label]) => {
@@ -1080,11 +1097,16 @@ function renderGroupChart(rows) {
 
   setText(
     "rdGroupChartNote",
-    `แสดง ${formatNumber(counts.size, 0)} กลุ่มตัวชี้วัด · รวม ${formatNumber(total, 0)} ตัวชี้วัด · คลิกกราฟเพื่อดู Excellence`
+    `แสดง ${formatNumber(counts.size, 0)} กลุ่มตัวชี้วัด · ` +
+    `รวม ${formatNumber(total, 0)} ตัวชี้วัด · ` +
+    "คลิกตรงกลางเพื่อดู KPI หรือคลิกชิ้นกราฟเพื่อดู Excellence"
   );
 
   const container = canvas.parentElement;
-  if (container) container.style.height = "360px";
+
+  if (container) {
+    container.style.height = "360px";
+  }
 
   STATE.charts.group = new window.Chart(canvas, {
     type: "doughnut",
@@ -1106,17 +1128,66 @@ function renderGroupChart(rows) {
       maintainAspectRatio: false,
       cutout: "68%",
 
-      // คลิกส่วนกราฟเพื่อแสดงสรุป Excellence
-     
-onClick(event, elements, chart) {
-  if (!elements.length) return;
+      // ตรวจสอบว่าคลิกตรงกลางหรือคลิกชิ้นกราฟ
+      onClick(event, elements, chart) {
+        const canvas = chart.canvas;
+        const rect = canvas.getBoundingClientRect();
 
-  const index = elements[0].index;
-  const selectedGroup = chart.data.labels[index];
+        // พิกัดเมาส์ภายใน Canvas
+        const x = event.native
+          ? event.native.clientX - rect.left
+          : event.x;
 
-  // เปิดหน้า Excellence.html เมื่อคลิกกลุ่มในกราฟ
-  openExcellencePage(selectedGroup);
-},
+        const y = event.native
+          ? event.native.clientY - rect.top
+          : event.y;
+
+        // จุดศูนย์กลางของ Doughnut
+        const centerX = chart.chartArea
+          ? (chart.chartArea.left + chart.chartArea.right) / 2
+          : chart.width / 2;
+
+        const centerY = chart.chartArea
+          ? (chart.chartArea.top + chart.chartArea.bottom) / 2
+          : chart.height / 2;
+
+        const distance = Math.sqrt(
+          Math.pow(x - centerX, 2) +
+          Math.pow(y - centerY, 2)
+        );
+
+        // รัศมีด้านในของกราฟ
+        const meta = chart.getDatasetMeta(0);
+        const arc = meta.data && meta.data[0];
+        const innerRadius = arc ? arc.innerRadius : 0;
+
+        // คลิกตรงกลางกราฟ → เปิด KPI.html
+        if (distance <= innerRadius) {
+          window.location.href = "/KPI.html";
+          return;
+        }
+
+        // คลิกนอกชิ้นกราฟ ไม่ต้องทำอะไร
+        if (!elements || !elements.length) return;
+
+        const index = elements[0].index;
+        const selectedGroup = chart.data.labels[index];
+
+        // คลิกกลุ่ม "อื่น ๆ" → ส่งรายชื่อกลุ่มจริงที่ถูกรวมไว้
+        if (
+          selectedGroup === GROUP_OTHER_LABEL &&
+          groupMap.has(GROUP_OTHER_LABEL)
+        ) {
+          const groupedNames = groupMap.get(GROUP_OTHER_LABEL);
+
+          // ส่งชื่อกลุ่มที่รวมไว้ให้หน้า Excellence
+          openExcellencePage(groupedNames.join(", "));
+          return;
+        }
+
+        // คลิกกลุ่มปกติ → เปิด Excellence ตามกลุ่ม
+        openExcellencePage(selectedGroup);
+      },
 
       plugins: {
         legend: {
@@ -1133,6 +1204,7 @@ onClick(event, elements, chart) {
           callbacks: {
             label(context) {
               const value = Number(context.raw || 0);
+
               const percent = total
                 ? formatNumber((value / total) * 100, 1)
                 : "0";
@@ -1145,7 +1217,6 @@ onClick(event, elements, chart) {
     }
   });
 }
-
   /* ==========================================================
      14. TABLE
   ========================================================== */
@@ -1521,197 +1592,155 @@ onClick(event, elements, chart) {
     }
   }
 
-  
-/* ==========================================================
-   20. LOAD dashboard.html
-   Frontend : GitHub Pages
-   File     : app_dashboard.js
-========================================================== */
+  /* ==========================================================
+     20. LOAD dashboard.HTML
+  ========================================================== */
 
-const DASHBOARD_HTML_PATH = "/KPI/report/dashboard.html";
+ 
+  /* ==========================================================
+     20. LOAD dashboard.html
+     Frontend: GitHub Pages
+  ========================================================== */
 
-async function loadDashboardHTML() {
-  // 1. ป้องกันการโหลด HTML ซ้อนกัน
-  if (STATE.loadingHTML) {
-    console.warn("[REPORT] HTML is already loading.");
-    return;
-  }
+  async function loadDashboardHTML() {
+    // ป้องกันการโหลด HTML ซ้อนกัน
+    if (STATE.loadingHTML) return;
 
-  const mount = $("dashboardMount");
+    const mount = $("dashboardMount");
 
-  // 2. หากไม่มี mount ให้ใช้ Dashboard ที่อยู่ในหน้าโดยตรง
-  if (!mount) {
-    if (root()) {
-      initDashboard();
-    } else {
-      console.error(
-        "[REPORT] ไม่พบ #dashboardMount และ #reportKpiDashboard"
-      );
-    }
-    return;
-  }
-
-  // 3. หากโหลดและเริ่มต้นแล้ว ไม่ต้องโหลดซ้ำ
-  if (
-    mount.dataset.rdLoaded === "true" &&
-    root() &&
-    STATE.initialized
-  ) {
-    console.info("[REPORT] Dashboard HTML is already loaded.");
-    return;
-  }
-
-  // 4. GitHub Pages ต้องเปิดผ่าน HTTP/HTTPS
-  if (window.location.protocol === "file:") {
-    mount.innerHTML = `
-      <div class="card" role="alert">
-        <h3>ไม่สามารถโหลด Dashboard ได้</h3>
-        <p>กรุณาเปิดผ่าน GitHub Pages หรือ Web Server</p>
-        <p>ตัวอย่าง: python -m http.server 8000</p>
-      </div>
-    `;
-    return;
-  }
-
-  STATE.loadingHTML = true;
-  mount.dataset.rdLoaded = "false";
-
-  mount.innerHTML = `
-    <div class="card" role="status" aria-live="polite">
-      กำลังโหลด Dashboard...
-    </div>
-  `;
-
-  try {
-    // 5. สร้าง URL โดยอิงจาก GitHub Pages path ที่กำหนด
-    const url = new URL(
-      DASHBOARD_HTML_PATH,
-      window.location.origin
-    );
-
-    // ป้องกัน cache ของ HTML เก่า
-    url.searchParams.set("_", String(Date.now()));
-
-    console.info(
-      "[REPORT] Loading dashboard HTML:",
-      url.href
-    );
-
-    // 6. ขอไฟล์ HTML
-    const response = await fetch(url.href, {
-      method: "GET",
-      cache: "no-store",
-      headers: {
-        "Accept": "text/html"
+    if (!mount) {
+      // อาจมี dashboard อยู่ในหน้าโดยตรง
+      if (root()) {
+        initDashboard();
+      } else {
+        console.error(
+          "[REPORT] ไม่พบ #dashboardMount และ #reportKpiDashboard"
+        );
       }
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `โหลด dashboard.html ไม่สำเร็จ ` +
-        `(HTTP ${response.status}) ` +
-        `URL: ${url.pathname}`
-      );
+      return;
     }
 
-    // 7. อ่านเนื้อหา HTML
-    const html = await response.text();
-
-    if (!html.trim()) {
-      throw new Error("ไฟล์ dashboard.html ไม่มีเนื้อหา");
-    }
-
-    // 8. ตรวจสอบว่าเป็นไฟล์ HTML ที่ถูกต้อง
-    const parser = new DOMParser();
-
-    const parsedHTML = parser.parseFromString(
-      html,
-      "text/html"
-    );
-
-    const dashboardRoot = parsedHTML.getElementById(
-      "reportKpiDashboard"
-    );
-
-    if (!dashboardRoot) {
-      throw new Error(
-        'ไม่พบ id="reportKpiDashboard" ใน dashboard.html'
-      );
-    }
-
-    // ตรวจจับหน้า 404 ที่ถูกส่งกลับมาด้วย HTTP 200
-    const pageTitle = normalizeText(parsedHTML.title);
-
+    // ถ้าโหลดและเริ่มต้นแล้ว ไม่ต้องโหลดซ้ำ
     if (
-      /404|page not found/i.test(pageTitle) &&
-      !dashboardRoot
+      mount.dataset.rdLoaded === "true" &&
+      root() &&
+      STATE.initialized
     ) {
-      throw new Error(
-        "เซิร์ฟเวอร์ส่งหน้า 404 กลับมาแทน Dashboard"
-      );
+      return;
     }
 
-    // 9. แทรก Dashboard ลงใน mount
-    // หมายเหตุ: นำเข้าเฉพาะ root element
-    mount.replaceChildren(
-      document.importNode(dashboardRoot, true)
-    );
+    // ไม่รองรับการ fetch ไฟล์ผ่าน file://
+    if (window.location.protocol === "file:") {
+      mount.innerHTML = `
+        <div class="card" role="alert">
+          <h3>กรุณาเปิดเว็บไซต์ผ่านเว็บเซิร์ฟเวอร์</h3>
+          <p>ไม่สามารถโหลด dashboard.html ผ่าน file:// ได้</p>
+          <p>ใช้ GitHub Pages หรือ python -m http.server 8000</p>
+        </div>
+      `;
+      return;
+    }
 
-    mount.dataset.rdLoaded = "true";
-
-    console.info(
-      "[REPORT] Dashboard HTML loaded successfully."
-    );
-
-    // 10. เริ่มต้น Dashboard และโหลดข้อมูล
-    initDashboard();
-
-  } catch (error) {
-    console.error(
-      "[REPORT] Dashboard HTML error:",
-      error
-    );
-
-    mount.dataset.rdLoaded = "false";
-
-    const message = error?.message ||
-      "เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ";
+    STATE.loadingHTML = true;
 
     mount.innerHTML = `
-      <div class="card" role="alert">
-        <h3>ไม่สามารถโหลด Dashboard ได้</h3>
-
-        <p>${escapeHTML(message)}</p>
-
-        <p>
-          กรุณาตรวจสอบชื่อไฟล์ dashboard.html
-          และตำแหน่งไฟล์ใน GitHub Repository
-        </p>
-
-        <button
-          type="button"
-          class="rd-btn rd-btn-light"
-          id="rdRetryLoadHTML"
-        >
-          ลองโหลดอีกครั้ง
-        </button>
+      <div class="card" role="status" aria-live="polite">
+        กำลังโหลด Dashboard...
       </div>
     `;
 
-    // 11. ผูกปุ่มลองใหม่
-    $("rdRetryLoadHTML")?.addEventListener(
-      "click",
-      () => {
-        loadDashboardHTML();
-      },
-      { once: true }
-    );
+    try {
+      // สำคัญ: ใช้ dashboard.html ตัวพิมพ์เล็ก
+      // URL นี้อิงจาก URL ของหน้าเว็บที่กำลังเปิด
+      const url = new URL(
+        "dashboard.html",
+        document.baseURI
+      );
 
-  } finally {
-    // 12. ปลดล็อกสถานะเมื่อเสร็จสิ้น
-    STATE.loadingHTML = false;
+      // ป้องกันการใช้ cache ของ HTML เก่า
+      url.searchParams.set("_", String(Date.now()));
+
+      console.info("[REPORT] Loading dashboard HTML:", url.href);
+
+      const response = await fetch(url.href, {
+        method: "GET",
+        cache: "no-store"
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `โหลด dashboard.html ไม่สำเร็จ ` +
+          `(HTTP ${response.status}) — ${url.pathname}`
+        );
+      }
+
+      const html = await response.text();
+
+      if (!html.trim()) {
+        throw new Error("ไฟล์ dashboard.html ไม่มีเนื้อหา");
+      }
+
+      // ตรวจสอบว่าเป็นไฟล์ Dashboard ที่ถูกต้อง
+      const parser = new DOMParser();
+      const parsedHTML = parser.parseFromString(
+        html,
+        "text/html"
+      );
+
+      const dashboardRoot = parsedHTML.getElementById(
+        "reportKpiDashboard"
+      );
+
+      if (!dashboardRoot) {
+        throw new Error(
+          'ไม่พบ id="reportKpiDashboard" ใน dashboard.html'
+        );
+      }
+
+      // แทรกเนื้อหา Dashboard ลงในหน้า
+      mount.innerHTML = dashboardRoot.outerHTML;
+      mount.dataset.rdLoaded = "true";
+
+      // เริ่มต้นระบบหลังจากแทรก HTML แล้ว
+      initDashboard();
+
+      console.info("[REPORT] Dashboard HTML loaded successfully");
+
+    } catch (error) {
+      console.error("[REPORT] Dashboard HTML error:", error);
+
+      mount.dataset.rdLoaded = "false";
+
+      mount.innerHTML = `
+        <div class="card" role="alert">
+          <h3>ไม่สามารถโหลด Dashboard ได้</h3>
+          <p>${escapeHTML(
+            error.message || "เกิดข้อผิดพลาด"
+          )}</p>
+          <p>
+            ตรวจสอบตำแหน่งไฟล์ dashboard.html
+            และการเผยแพร่ GitHub Pages
+          </p>
+          <button
+            type="button"
+            class="rd-btn rd-btn-light"
+            id="rdRetryLoadHTML"
+          >
+            ลองโหลดอีกครั้ง
+          </button>
+        </div>
+      `;
+
+      $("rdRetryLoadHTML")?.addEventListener(
+        "click",
+        loadDashboardHTML
+      );
+
+    } finally {
+      STATE.loadingHTML = false;
+    }
   }
-}
+
 
   /* ==========================================================
      21. STARTUP
