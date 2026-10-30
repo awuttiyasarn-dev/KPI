@@ -1162,10 +1162,11 @@ function renderGroupChart(rows) {
         const innerRadius = arc ? arc.innerRadius : 0;
 
         // คลิกตรงกลางกราฟ → เปิด KPI.html
-        if (distance <= innerRadius) {
-          window.location.href = "KPI.html";
-          return;
-        }
+      if (distance <= innerRadius) {
+  const url = new URL("../KPI.html", window.location.href);
+  window.location.href = url.href;
+  return;
+}
 
         // คลิกนอกชิ้นกราฟ ไม่ต้องทำอะไร
         if (!elements || !elements.length) return;
