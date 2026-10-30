@@ -1163,7 +1163,7 @@ function renderGroupChart(rows) {
 
         // คลิกตรงกลางกราฟ → เปิด KPI.html
         if (distance <= innerRadius) {
-          window.location.href = "/KPI.html";
+          window.location.href = "KPI.html";
           return;
         }
 
