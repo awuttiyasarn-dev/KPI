@@ -1,189 +1,291 @@
-<div id="reportKpiDashboard" class="report-dashboard">
-  <!-- Dashboard Header -->
-  <header class="rd-header">
-    <div class="rd-header-content">
-      <div class="rd-eyebrow">
-        <span class="rd-eyebrow-dot" aria-hidden="true"></span>
-        REPORT MANAGEMENT SYSTEM
+<!--
+  วางไฟล์นี้ "ต่อท้าย" โค้ด #reportKpiDashboard เดิม (หลัง </div> ปิดสุดท้าย)
+  แล้วเรียก RdKpiTable.setRows(rows) ตรงที่โค้ดเดิมสร้างตารางอยู่ (ดูตัวอย่างท้ายไฟล์)
+-->
+<style>
+/* ===== ตาราง ===== */
+#reportKpiDashboard .rd-table-wrapper{border:1px solid #dde7e2;border-radius:16px;background:#fff;overflow:auto;max-height:640px;box-shadow:0 10px 28px rgba(10,50,38,.07)}
+#reportKpiDashboard .rd-table{width:100%;border-collapse:separate;border-spacing:0;font-size:14px;color:#16322a}
+#reportKpiDashboard .rd-table thead th{position:sticky;top:0;z-index:2;padding:12px 14px;background:#08382b;color:#e3f4ec;font-weight:500;text-align:left;white-space:nowrap}
+#reportKpiDashboard .rd-table tbody td{padding:13px 14px;border-bottom:1px solid #e7efeb;vertical-align:middle;background:#fff;transition:background .12s}
+#reportKpiDashboard .rd-table tbody tr:nth-child(even) td{background:#f8fbf9}
+#reportKpiDashboard .rd-table tbody tr:hover td{background:#e8f5ef}
+#reportKpiDashboard .rd-table tbody tr:last-child td{border-bottom:0}
+#reportKpiDashboard .rd-table .rdt-num{text-align:right;font-variant-numeric:tabular-nums}
+#reportKpiDashboard .rdt-desc{min-width:280px;max-width:480px;line-height:1.55;white-space:normal}
+#reportKpiDashboard .rdt-tag{display:inline-block;padding:3px 10px;border-radius:8px;background:#eef5f1;color:#2c5a49;font-size:13px;white-space:nowrap}
+#reportKpiDashboard .rdt-pill{display:inline-block;padding:4px 12px;border-radius:999px;background:#edf1ef;color:#52625a;font-size:12px;font-weight:500;white-space:nowrap}
+#reportKpiDashboard .rdt-pill.pass{background:#dff3e9;color:#0b6b4e}
+#reportKpiDashboard .rdt-pill.fail{background:#fdeceb;color:#b42318}
+#reportKpiDashboard .rdt-pill.warn{background:#fff1d6;color:#8a5a00}
+#reportKpiDashboard .rdt-pct{display:flex;flex-direction:column;align-items:flex-end;gap:5px;min-width:90px}
+#reportKpiDashboard .rdt-pct i{display:block;width:100%;height:6px;border-radius:99px;background:#e3ede8;overflow:hidden}
+#reportKpiDashboard .rdt-pct b{display:block;height:100%;border-radius:99px;background:#0b7a5a}
+#reportKpiDashboard .rd-table-placeholder{padding:36px 14px;text-align:center;color:#6b7d75}
+/* ===== หัวคอลัมน์ + ปุ่มกรอง ===== */
+#reportKpiDashboard .rdt-th{display:flex;align-items:center;justify-content:space-between;gap:10px}
+#reportKpiDashboard .rdt-filter{min-width:26px;height:26px;padding:0 6px;border:0;border-radius:7px;background:rgba(255,255,255,.14);color:#d7efe5;font-size:12px;line-height:1;cursor:pointer;transition:.15s}
+#reportKpiDashboard .rdt-filter:hover{background:rgba(255,255,255,.28)}
+#reportKpiDashboard .rdt-filter.active{background:#f0a93b;color:#08382b}
+#reportKpiDashboard .rdt-filter:focus-visible{outline:2px solid #8fe0c0;outline-offset:2px}
+/* ===== ชิปตัวกรองที่ใช้อยู่ ===== */
+#reportKpiDashboard .rdt-chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+#reportKpiDashboard .rdt-chips:empty{display:none}
+#reportKpiDashboard .rdt-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 6px 5px 12px;border-radius:999px;background:#e6f4ee;color:#0b5d46;font-size:13px}
+#reportKpiDashboard .rdt-chip button{width:20px;height:20px;border:0;border-radius:50%;background:#fff;color:#0b5d46;cursor:pointer;line-height:1}
+#reportKpiDashboard .rdt-clear{padding:5px 12px;border:1px solid #dde7e2;border-radius:999px;background:#fff;color:#4d6159;font-size:13px;cursor:pointer}
+/* ===== กล่องตัวกรองแบบ Excel ===== */
+.rdt-pop{position:fixed;z-index:9999;width:280px;padding:12px;background:#fff;border:1px solid #dde7e2;border-radius:14px;box-shadow:0 14px 40px rgba(8,56,43,.22);font:13px/1.5 inherit;color:#16322a}
+.rdt-pop button{font:inherit;cursor:pointer}
+.rdt-sort{display:flex;gap:6px;margin-bottom:8px}
+.rdt-sort button{flex:1;padding:6px 8px;border:1px solid #dde7e2;border-radius:9px;background:#fff}
+.rdt-sort button:hover,.rdt-sort button.on{border-color:#0b7a5a;background:#e6f4ee;color:#0b5d46}
+.rdt-search{width:100%;padding:8px 10px;margin-bottom:8px;border:1px solid #dde7e2;border-radius:9px;background:#f7faf8;font:inherit}
+.rdt-list{max-height:240px;overflow-y:auto;margin:4px 0 10px;padding-top:4px;border-top:1px solid #e7efeb}
+.rdt-item{display:flex;align-items:center;gap:8px;padding:6px 4px;border-radius:7px;cursor:pointer}
+.rdt-item:hover{background:#e6f4ee}
+.rdt-item span{flex:1;min-width:0;overflow-wrap:anywhere}
+.rdt-item em{font-style:normal;color:#6b7d75;font-size:12px}
+.rdt-actions{display:flex;justify-content:flex-end;gap:8px}
+.rdt-actions .ghost{padding:8px 14px;border:1px solid #dde7e2;border-radius:11px;background:#fff}
+.rdt-actions .ok{padding:8px 16px;border:0;border-radius:11px;background:#0b7a5a;color:#fff}
+.rdt-actions .ok:disabled{opacity:.45;cursor:not-allowed}
+</style>
+
+<script>
+(function () {
+  "use strict";
+  const root = document.getElementById("reportKpiDashboard");
+  if (!root) return;
+  const $ = id => document.getElementById(id);
+  const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"})[c]);
+
+  const COLS = [
+    {key: "year", label: "ปีงบประมาณ"},
+    {key: "group", label: "กลุ่มตัวชี้วัด"},
+    {key: "description", label: "ตัวชี้วัด / รายละเอียด"},
+    {key: "result", label: "ผลลัพธ์", num: true},
+    {key: "target", label: "เป้าหมาย", num: true},
+    {key: "percent", label: "ร้อยละ", num: true},
+    {key: "summary", label: "สรุปผล"}
+  ];
+
+  /* ชื่อคอลัมน์จากชีต REPORT (ปรับได้ หรือส่ง mapper ของตัวเองใน setRows) */
+  const ALIAS = {
+    year: ["Fisyear", "FisYear", "Fiscal_year", "FiscalYear"],
+    group: ["kpi_Group_Des", "KPI_Group", "Group"],
+    description: ["kpi_Des", "KPI_Des", "Description", "KPI"],
+    result: ["Result"], target: ["Target"],
+    percent: ["Rate", "Nrate", "Percent"],
+    summary: ["Summary", "Status"]
+  };
+  function pick(row, names) {
+    for (const n of names) if (row[n] != null && String(row[n]).trim() !== "") return row[n];
+    const keys = Object.keys(row);
+    for (const n of names) {
+      const k = keys.find(x => x.toLowerCase() === n.toLowerCase());
+      if (k && row[k] != null && String(row[k]).trim() !== "") return row[k];
+    }
+    return "";
+  }
+  let mapper = row => {
+    const o = {};
+    Object.keys(ALIAS).forEach(k => o[k] = String(pick(row, ALIAS[k])).trim());
+    o.group = o.group || "ไม่ระบุกลุ่ม";
+    o.summary = o.summary || "ไม่ระบุสถานะ";
+    return o;
+  };
+
+  const st = {rows: [], view: [], filters: {}, sort: null, page: 1, listeners: []};
+  const label = v => v === "" ? "(ว่าง)" : v;
+  const toNum = v => { const n = Number(String(v).replace(/[,%\s]/g, "")); return String(v).trim() !== "" && Number.isFinite(n) ? n : null; };
+  const fmt = v => { const n = toNum(v); return n === null ? (v || "—") : n.toLocaleString("th-TH", {maximumFractionDigits: 2}); };
+  const pillCls = s => s === "ผ่าน" ? "pass" : s === "ไม่ผ่าน" ? "fail" : s === "ยังไม่ได้กรอกข้อมูล" ? "warn" : "";
+
+  /* ---------- หัวตาราง + ชิป ---------- */
+  const table = $("rdKpiTable");
+  const wrapper = root.querySelector(".rd-table-wrapper");
+  const chips = document.createElement("div");
+  chips.className = "rdt-chips";
+  if (wrapper) wrapper.parentNode.insertBefore(chips, wrapper);
+
+  if (table) {
+    const ths = table.querySelectorAll("thead th");
+    COLS.forEach((c, i) => {
+      const th = ths[i];
+      if (!th) return;
+      th.className = c.num ? "rdt-num" : "";
+      th.innerHTML = `<div class="rdt-th"><span>${c.label}</span><button type="button" class="rdt-filter" data-col="${c.key}" aria-label="ตัวกรองคอลัมน์ ${c.label}" aria-haspopup="true">▾</button></div>`;
+    });
+  }
+
+  /* ---------- กรอง / เรียง ---------- */
+  function rowsExcept(k) {
+    return st.rows.filter(r => COLS.every(c => c.key === k || !st.filters[c.key] || st.filters[c.key].has(r[c.key])));
+  }
+  function compute() {
+    let v = rowsExcept(null);
+    if (st.sort) {
+      const {key, dir} = st.sort;
+      v = [...v].sort((a, b) => dir * String(a[key]).localeCompare(String(b[key]), "th", {numeric: true}));
+    }
+    st.view = v;
+  }
+
+  /* ---------- วาดตาราง ---------- */
+  function render() {
+    compute();
+    const size = Number(($("rdPageSize") || {}).value) || 25;
+    const pages = Math.max(1, Math.ceil(st.view.length / size));
+    st.page = Math.min(st.page, pages);
+    const start = (st.page - 1) * size;
+    const slice = st.view.slice(start, start + size);
+    const body = $("rdKpiTableBody");
+    if (body) {
+      body.innerHTML = slice.length ? slice.map(r => {
+        const p = toNum(r.percent);
+        const pct = p === null ? "—" :
+          `<div class="rdt-pct"><span>${p.toLocaleString("th-TH", {maximumFractionDigits: 1})}%</span><i><b style="width:${Math.max(0, Math.min(100, p))}%"></b></i></div>`;
+        return `<tr>
+          <td>${esc(r.year || "—")}</td>
+          <td><span class="rdt-tag">${esc(r.group)}</span></td>
+          <td class="rdt-desc">${esc(r.description || "—")}</td>
+          <td class="rdt-num">${esc(fmt(r.result))}</td>
+          <td class="rdt-num">${esc(fmt(r.target))}</td>
+          <td class="rdt-num">${pct}</td>
+          <td><span class="rdt-pill ${pillCls(r.summary)}">${esc(r.summary)}</span></td>
+        </tr>`;
+      }).join("") : `<tr><td colspan="${COLS.length}" class="rd-table-placeholder">ไม่พบข้อมูลที่ตรงกับเงื่อนไข</td></tr>`;
+    }
+    const set = (id, t) => { if ($(id)) $(id).textContent = t; };
+    set("rdVisibleCount", st.view.length.toLocaleString("th-TH"));
+    set("rdPageInfo", `หน้า ${st.page} / ${pages}`);
+    set("rdPaginationInfo", `แสดง ${st.view.length ? start + 1 : 0}–${start + slice.length} จาก ${st.view.length.toLocaleString("th-TH")} รายการ`);
+    if ($("rdPrevPage")) $("rdPrevPage").disabled = st.page <= 1;
+    if ($("rdNextPage")) $("rdNextPage").disabled = st.page >= pages;
+    renderChips();
+    st.listeners.forEach(fn => { try { fn(st.view.map(r => r.__src)); } catch (e) { console.error(e); } });
+  }
+
+  function renderChips() {
+    document.querySelectorAll("#rdKpiTable .rdt-filter").forEach(b =>
+      b.classList.toggle("active", !!st.filters[b.dataset.col] || (st.sort && st.sort.key === b.dataset.col)));
+    const active = COLS.filter(c => st.filters[c.key]);
+    chips.innerHTML = active.map(c => {
+      const s = st.filters[c.key];
+      const txt = s.size === 1 ? label([...s][0]) : `${s.size} ค่า`;
+      return `<span class="rdt-chip">${c.label}: ${esc(txt)}<button type="button" data-clear="${c.key}" aria-label="ลบตัวกรอง ${c.label}">✕</button></span>`;
+    }).join("") + (active.length ? '<button type="button" class="rdt-clear" data-clear="*">ล้างตัวกรองคอลัมน์ทั้งหมด</button>' : "");
+  }
+  chips.addEventListener("click", e => {
+    const b = e.target.closest("[data-clear]");
+    if (!b) return;
+    if (b.dataset.clear === "*") st.filters = {}; else delete st.filters[b.dataset.clear];
+    st.page = 1; render();
+  });
+
+  /* ---------- กล่องตัวกรองแบบ Excel ---------- */
+  let pop = null;
+  const closePop = () => { if (pop) { pop.remove(); pop = null; } };
+
+  function openPop(btn) {
+    closePop();
+    const key = btn.dataset.col;
+    const counts = new Map();
+    rowsExcept(key).forEach(r => counts.set(r[key], (counts.get(r[key]) || 0) + 1));
+    const values = [...counts.keys()].sort((a, b) => String(a).localeCompare(String(b), "th", {numeric: true}));
+    const cur = st.filters[key];
+    const selected = new Set(cur ? values.filter(v => cur.has(v)) : values);
+
+    pop = document.createElement("div");
+    pop.className = "rdt-pop";
+    pop.dataset.col = key;
+    pop.innerHTML = `
+      <div class="rdt-sort">
+        <button type="button" data-sort="1" class="${st.sort && st.sort.key === key && st.sort.dir === 1 ? "on" : ""}">เรียง ก → ฮ</button>
+        <button type="button" data-sort="-1" class="${st.sort && st.sort.key === key && st.sort.dir === -1 ? "on" : ""}">เรียง ฮ → ก</button>
       </div>
-      <h1 class="rd-title">รายงานผลการดำเนินงาน KPI</h1>
-      <p class="rd-subtitle">ระบบติดตามและประเมินผลตัวชี้วัดจากฐานข้อมูล REPORT</p>
-    </div>
+      <input class="rdt-search" type="search" placeholder="ค้นหา" aria-label="ค้นหาในตัวกรอง">
+      <label class="rdt-item"><input type="checkbox" class="rdt-all"> <span><b>(เลือกทั้งหมด)</b></span></label>
+      <div class="rdt-list"></div>
+      <div class="rdt-actions"><button type="button" class="ghost rdt-reset">ล้างตัวกรอง</button><button type="button" class="ok rdt-ok">ตกลง</button></div>`;
+    document.body.appendChild(pop);
 
-    <div class="rd-header-actions">
-      <button type="button" id="rdRefreshBtn" class="rd-btn rd-btn-primary">
-        <span aria-hidden="true">↻</span>
-        <span>รีเฟรชข้อมูล</span>
-      </button>
-      <button type="button" id="rdExportBtn" class="rd-btn rd-btn-outline" disabled>
-        <span aria-hidden="true">⇩</span>
-        <span>ส่งออก Excel</span>
-      </button>
-    </div>
-  </header>
+    const search = pop.querySelector(".rdt-search"), list = pop.querySelector(".rdt-list");
+    const all = pop.querySelector(".rdt-all"), ok = pop.querySelector(".rdt-ok");
+    const shown = () => { const q = search.value.trim().toLowerCase(); return values.filter(v => label(v).toLowerCase().includes(q)); };
 
-  <!-- Loading / Error Status -->
-  <div id="rdLoadingStatus" class="rd-loading-status" role="status" aria-live="polite" aria-busy="true">
-    <div class="rd-loading-spinner" aria-hidden="true"></div>
-    <div class="rd-loading-dot" id="rdLoadingDot" aria-hidden="true"></div>
-    <div class="rd-loading-copy">
-      <strong id="rdLoadingTitle">กำลังเตรียมโหลดข้อมูล</strong>
-      <span id="rdLoadingMessage">กำลังเชื่อมต่อ Google Apps Script...</span>
-      <span id="rdLoadingCount" class="rd-loading-count"></span>
-    </div>
-  </div>
+    function draw() {
+      const sv = shown();
+      list.innerHTML = sv.length
+        ? sv.map(v => `<label class="rdt-item"><input type="checkbox" data-v="${esc(v)}" ${selected.has(v) ? "checked" : ""}> <span>${esc(label(v))}</span><em>${counts.get(v).toLocaleString("th-TH")}</em></label>`).join("")
+        : '<div style="padding:12px;text-align:center;color:#6b7d75">ไม่พบรายการ</div>';
+      const on = sv.filter(v => selected.has(v)).length;
+      all.checked = sv.length > 0 && on === sv.length;
+      all.indeterminate = on > 0 && on < sv.length;
+      ok.disabled = selected.size === 0;
+    }
+    list.addEventListener("change", e => {
+      const b = e.target.closest("input[data-v]");
+      if (!b) return;
+      b.checked ? selected.add(b.dataset.v) : selected.delete(b.dataset.v);
+      draw();
+    });
+    all.addEventListener("change", () => { shown().forEach(v => all.checked ? selected.add(v) : selected.delete(v)); draw(); });
+    search.addEventListener("input", draw);
+    pop.querySelector(".rdt-sort").addEventListener("click", e => {
+      const b = e.target.closest("[data-sort]");
+      if (!b) return;
+      st.sort = {key, dir: Number(b.dataset.sort)};
+      closePop(); render();
+    });
+    pop.querySelector(".rdt-reset").addEventListener("click", () => {
+      delete st.filters[key];
+      if (st.sort && st.sort.key === key) st.sort = null;
+      closePop(); st.page = 1; render();
+    });
+    ok.addEventListener("click", () => {
+      if (selected.size === values.length) delete st.filters[key]; else st.filters[key] = new Set(selected);
+      closePop(); st.page = 1; render();
+    });
+    draw();
 
-  <!-- Dashboard Alert -->
-  <div id="rdDashboardAlert" class="rd-alert" hidden aria-live="polite" role="alert"></div>
+    const r = btn.getBoundingClientRect();
+    pop.style.top = Math.max(8, Math.min(r.bottom + 6, innerHeight - pop.offsetHeight - 8)) + "px";
+    pop.style.left = Math.max(8, Math.min(r.left, innerWidth - pop.offsetWidth - 8)) + "px";
+    search.focus();
+  }
 
-  <!-- Filter Panel -->
-  <section class="rd-panel rd-filter-panel" aria-labelledby="rdFilterHeading">
-    <div class="rd-panel-heading">
-      <div>
-        <h2 id="rdFilterHeading" class="rd-section-title">ตัวกรองข้อมูล</h2>
-        <p class="rd-section-description">เลือกปีงบประมาณ กลุ่มตัวชี้วัด และค้นหาข้อมูลที่ต้องการ</p>
-      </div>
-      <button type="button" id="rdResetFilters" class="rd-text-btn">ล้างตัวกรอง</button>
-    </div>
+  if (table) table.querySelector("thead").addEventListener("click", e => {
+    const b = e.target.closest(".rdt-filter");
+    if (!b) return;
+    e.stopPropagation();
+    (pop && pop.dataset.col === b.dataset.col) ? closePop() : openPop(b);
+  });
+  document.addEventListener("click", e => { if (pop && !pop.contains(e.target)) closePop(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closePop(); });
+  window.addEventListener("scroll", e => { if (pop && !pop.contains(e.target)) closePop(); }, true);
+  window.addEventListener("resize", closePop);
 
-    <div class="rd-filter-grid">
-      <label class="rd-field" for="rdFilterYear">
-        <span>ปีงบประมาณ</span>
-        <select id="rdFilterYear">
-          <option value="">ทุกปีงบประมาณ</option>
-        </select>
-      </label>
+  /* ---------- แบ่งหน้า ---------- */
+  const on = (id, ev, fn) => { if ($(id)) $(id).addEventListener(ev, fn); };
+  on("rdPrevPage", "click", () => { if (st.page > 1) { st.page--; render(); } });
+  on("rdNextPage", "click", () => { st.page++; render(); });
+  on("rdPageSize", "change", () => { st.page = 1; render(); });
 
-      <label class="rd-field" for="rdFilterGroup">
-        <span>กลุ่มตัวชี้วัด</span>
-        <select id="rdFilterGroup">
-          <option value="">ทุกกลุ่ม KPI</option>
-        </select>
-      </label>
-
-      <label class="rd-field" for="rdFilterExcellence">
-        <span>Excellence</span>
-        <select id="rdFilterExcellence">
-          <option value="">ทุก Excellence</option>
-        </select>
-      </label>
-
-      <label class="rd-field" for="rdFilterSection">
-        <span>หน่วยงาน / ส่วนงาน</span>
-        <select id="rdFilterSection">
-          <option value="">ทุกหน่วยงาน</option>
-        </select>
-      </label>
-
-      <label class="rd-field rd-search-field" for="rdFilterSearch">
-        <span>ค้นหาตัวชี้วัด</span>
-        <input
-          type="search"
-          id="rdFilterSearch"
-          placeholder="ค้นหาชื่อ KPI, คำอธิบาย หรือหน่วยงาน..."
-          autocomplete="off"
-        />
-      </label>
-    </div>
-
-    <!-- Table status -->
-    <div id="rdTableStatus" class="rd-table-status" aria-live="polite"></div>
-  </section>
-
-  <!-- Charts -->
-  <section class="rd-chart-section" aria-labelledby="rdChartHeading">
-    <div class="rd-section-heading">
-      <div>
-        <h2 id="rdChartHeading" class="rd-section-title">ภาพรวมผลการดำเนินงาน</h2>
-        <p class="rd-section-description">วิเคราะห์จำนวนตัวชี้วัดและผลการประเมินตามข้อมูลที่กรอง</p>
-      </div>
-    </div>
-
-    <div class="rd-chart-grid">
-
-      <article class="rd-panel rd-chart-card rd-chart-group rd-chart-wide">
-        <div class="rd-chart-heading">
-          <div>
-            <h3>จำนวนตัวชี้วัดตามกลุ่ม</h3>
-            <p>เปรียบเทียบจำนวนรายการในแต่ละกลุ่มตัวชี้วัด</p>
-          </div>
-        </div>
-        <div class="rd-chart-note" id="rdGroupChartNote"></div>
-        <div class="rd-chart-container">
-          <canvas id="rdGroupChart" role="img" aria-label="กราฟจำนวนตัวชี้วัดตามกลุ่ม"></canvas>
-        </div>
-      </article>
-
-    </div>
-  </section>
-
-<!-- Excellence Summary: แสดงเมื่อคลิกกราฟกลุ่ม KPI -->
-<section id="rdExcellenceSummary" class="rd-excellence-summary" aria-live="polite">
-  <div class="rd-excellence-empty">
-    คลิกส่วนใดส่วนหนึ่งของกราฟเพื่อดูสรุป Excellence จาก Summary
-  </div>
-</section>
-
-  <!-- KPI Table -->
-  <section class="rd-panel rd-table-panel" aria-labelledby="rdTableHeading">
-    <div class="rd-panel-heading rd-table-heading">
-      <div>
-        <h2 id="rdTableHeading" class="rd-section-title">รายละเอียดตัวชี้วัด</h2>
-        <p class="rd-section-description">รายการ KPI พร้อมเป้าหมาย ผลการดำเนินงาน และเกณฑ์การประเมิน</p>
-      </div>
-      <div class="rd-table-meta">
-        <span id="rdVisibleCount" aria-live="polite">0</span> รายการ
-      </div>
-    </div>
-
-    <div class="rd-table-toolbar">
-      <label class="rd-field rd-page-size-field" for="rdPageSize">
-        <span>แสดงต่อหน้า</span>
-        <select id="rdPageSize">
-          <option value="10">10 รายการ</option>
-          <option value="25" selected>25 รายการ</option>
-          <option value="50">50 รายการ</option>
-          <option value="100">100 รายการ</option>
-        </select>
-      </label>
-    </div>
-
-    <div class="rd-table-wrapper" role="region" aria-labelledby="rdTableHeading" tabindex="0">
-      <table id="rdKpiTable" class="rd-table">
-        <thead>
-          <tr>
-            <th scope="col">ปีงบประมาณ</th>
-            <th scope="col">กลุ่มตัวชี้วัด</th>
-            <th scope="col">ตัวชี้วัด / รายละเอียด</th>
-            <th scope="col">ผลลัพธ์</th>
-            <th scope="col">เป้าหมาย</th>
-            <th scope="col">ร้อยละ</th>
-            <th scope="col">สรุปผล</th>
-          </tr>
-        </thead>
-        <tbody id="rdKpiTableBody">
-          <tr>
-            <td colspan="7" class="rd-table-placeholder">กำลังโหลดข้อมูล...</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <nav class="rd-pagination" aria-label="การแบ่งหน้า">
-      <div id="rdPaginationInfo" class="rd-pagination-info" aria-live="polite">แสดง 0–0 จาก 0 รายการ</div>
-      <div class="rd-pagination-actions">
-        <button type="button" id="rdPrevPage" class="rd-page-btn" disabled>ก่อนหน้า</button>
-        <span id="rdPageInfo" class="rd-page-info" aria-live="polite">หน้า 1 / 1</span>
-        <button type="button" id="rdNextPage" class="rd-page-btn" disabled>ถัดไป</button>
-      </div>
-    </nav>
-
-  </section>
-
-  <!-- Footer -->
-  <footer class="rd-footer">
-    <span>REPORT KPI Dashboard</span>
-    <span id="rdLastUpdated" aria-live="polite">รอข้อมูลล่าสุด</span>
-  </footer>
-
-</div>
+  /* ---------- API ---------- */
+  window.RdKpiTable = {
+    // rows = อาร์เรย์ของแถวข้อมูล (object) ที่ผ่านตัวกรองด้านบนของหน้าแล้ว
+    // customMapper (ไม่บังคับ) = row => ({year, group, description, result, target, percent, summary})
+    setRows(rows, customMapper) {
+      if (customMapper) mapper = customMapper;
+      st.rows = (rows || []).map(r => { const o = mapper(r); o.__src = r; return o; });
+      st.page = 1;
+      render();
+    },
+    getFilteredRows() { return st.view.map(r => r.__src); },
+    onChange(fn) { st.listeners.push(fn); },
+    clearFilters() { st.filters = {}; st.sort = null; st.page = 1; render(); }
+  };
+})();
+</script>
