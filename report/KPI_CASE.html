@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b5d46">
+<title>KPI CASE | รายละเอียดตัวชี้วัด</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+:root{--green:#0b7a5a;--deep:#08382b;--soft:#e6f4ee;--bg:#eef3f1;--text:#16322a;--muted:#718078;--line:#dce7e1;--red:#d64545;--blue:#1d4ed8;--shadow:0 10px 30px rgba(10,50,38,.07)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"Kanit",sans-serif;overflow-x:hidden}
+button{font:inherit;cursor:pointer}
+.hero{background:linear-gradient(135deg,#08382b,#0b7a5a);color:#fff;padding:18px 4% 76px}
+.top{max-width:1400px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.brand{font-size:18px;font-weight:600;letter-spacing:.3px}.brand small{font-weight:300;opacity:.7}
+.actions{display:flex;gap:8px}
+.btn{border:1px solid rgba(255,255,255,.35);border-radius:11px;padding:9px 14px;background:rgba(255,255,255,.12);color:#fff}
+.btn.primary{background:#fff;color:var(--deep)}.btn:disabled{opacity:.6;cursor:wait}
+.heading{max-width:1400px;margin:34px auto 0}
+.eyebrow{font-size:12px;letter-spacing:1.2px;opacity:.75}
+.heading h1{font-size:clamp(25px,4vw,38px);line-height:1.35;margin:5px 0}
+.heading p{margin:0;opacity:.82;font-weight:300}
+main{width:min(1400px,92%);margin:-48px auto 40px}
+.status{background:#fff;border-radius:13px;padding:12px 16px;box-shadow:var(--shadow);font-size:13px;color:var(--muted);display:flex;gap:9px;align-items:center;margin-bottom:18px}
+.dot{width:9px;height:9px;border-radius:50%;background:#e6a23c;flex-shrink:0}.dot.ok{background:var(--green)}.dot.err{background:var(--red)}
+#updated{margin-left:auto}
+.card{background:#fff;border-radius:18px;padding:22px;box-shadow:var(--shadow);margin-bottom:18px;min-width:0}
+.section-title{font-size:18px;font-weight:500;margin:0 0 4px}
+.section-sub{font-size:12px;color:var(--muted);margin:0 0 16px}
+.kpi-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;flex-wrap:wrap}
+.code{display:inline-block;background:var(--soft);color:var(--green);border-radius:8px;padding:5px 10px;font-size:13px;font-weight:500}
+.kpi-name{font-size:clamp(20px,3vw,28px);font-weight:500;line-height:1.45;margin:10px 0 6px}
+.meta{display:flex;flex-wrap:wrap;gap:8px}
+.tag{background:#f1f5f3;border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:12px;color:#52645b}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:18px 0}
+.stat{padding:18px;background:#fff;border-radius:16px;box-shadow:var(--shadow);border-top:4px solid var(--green)}
+.stat.red{border-color:var(--red)}.stat.blue{border-color:var(--blue)}
+.stat-label{font-size:13px;color:var(--muted)}
+.stat-value{font-size:clamp(23px,3vw,32px);font-weight:600;margin-top:3px;overflow-wrap:anywhere}
+.stat-note{font-size:11px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.field{padding:13px 14px;border-radius:12px;background:#f6f9f7;min-width:0}.field.wide{grid-column:1/-1}
+.label{font-size:12px;color:var(--muted)}
+.value{font-size:15px;overflow-wrap:anywhere;white-space:pre-wrap}
+.pill{display:inline-block;border-radius:99px;padding:4px 11px;font-size:12px;background:#edf1ef;color:#52625a}
+.pill.pass{background:#dff3e9;color:#0b6b4e}.pill.fail{background:#fdeceb;color:#b42318}
+.empty{text-align:center;padding:30px;color:var(--muted)}
+.chart-empty{text-align:center;padding:30px;color:var(--muted);font-size:13px}
+.notice{padding:14px 16px;border-radius:12px;background:#fff8e8;border:1px solid #f2dfae;color:#775b19;font-size:13px;line-height:1.7}
+.month-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.month-count{font-size:12px;color:var(--muted)}
+.errorbox{padding:18px;border-radius:14px;background:#fff0ef;color:#9f2828;white-space:pre-wrap}
+.footer{text-align:center;color:var(--muted);font-size:12px;padding:20px}
+
+/* Summary Distribution */
+.summary-dashboard{display:grid;grid-template-columns:minmax(260px,1.15fr) minmax(220px,.85fr);gap:28px;align-items:center;padding:12px 4px}
+.summary-chart-area{position:relative;width:100%;height:350px;min-width:0}
+.summary-legend{display:flex;flex-direction:column;gap:12px}
+.summary-legend-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:#f7faf8;border:1px solid #e7efea;border-radius:12px}
+.summary-legend-left{display:flex;align-items:center;gap:9px;min-width:0}
+.summary-legend-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+.summary-legend-name{font-size:13px;font-weight:500;overflow-wrap:anywhere}
+.summary-legend-right{text-align:right;flex-shrink:0}
+.summary-legend-value{font-size:14px;font-weight:600;color:#173b2e}
+.summary-legend-percent{font-size:11px;color:#78877e}
+.summary-total{background:linear-gradient(135deg,#08382b,#0b7a5a);color:#fff;padding:18px;border-radius:15px;margin-bottom:15px}
+.summary-total-label{font-size:12px;opacity:.8}
+.summary-total-value{font-size:30px;font-weight:600;line-height:1.4}
+.summary-total-note{font-size:11px;opacity:.75}
+
+/* Monthly Trend (Line Chart) */
+.trend-toolbar{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.trend-chips{display:flex;flex-wrap:wrap;gap:8px}
+.trend-chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;color:#52645b;border-radius:999px;padding:6px 13px;font-size:12px;transition:.15s}
+.trend-chip i{width:10px;height:10px;border-radius:50%;background:var(--c)}
+.trend-chip:hover{border-color:var(--green);background:#f6f9f7}
+.trend-chip.off{opacity:.5}.trend-chip.off i{background:#cbd5d0}
+.trend-chart-area{position:relative;height:360px;min-width:0}
+
+.trend-chip.static{cursor:default}.trend-chip.static:hover{border-color:var(--line);background:#fff}
+.trend-chip b{font-weight:600;color:var(--text)}
+.month-pill{display:inline-flex;align-items:center;gap:10px;font-weight:500;color:#173b2e}
+.month-pill b{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:9px;background:linear-gradient(135deg,#0b7a5a,#34d399);color:#fff;font-size:11px;font-weight:600;box-shadow:0 4px 10px rgba(11,122,90,.25)}
+.monthly-table td .pill{font-weight:500}
+
+/* Excel AutoFilter Table */
+.monthly-table-wrap{width:100%;max-width:100%;overflow:auto;max-height:min(650px,70vh);overscroll-behavior:contain;border:1px solid var(--line);border-radius:12px;position:relative}
+.monthly-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;white-space:nowrap}
+.monthly-table thead th{position:sticky;top:0;z-index:5;background:#08382b;color:#fff;padding:10px 12px;border-right:1px solid rgba(255,255,255,.12);border-bottom:1px solid rgba(255,255,255,.15);text-align:left;font-weight:500;min-width:120px}
+.monthly-table tbody td{padding:11px 13px;border-bottom:1px solid #edf1ee;color:#34483e}
+.monthly-table tbody tr:nth-child(even){background:#f7faf8}
+.monthly-table tbody tr:hover{background:#e9f5ee}
+.monthly-th-content{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.monthly-sort-btn{border:0;padding:0;background:transparent;color:#fff;font:inherit;font-weight:500;text-align:left;overflow:hidden;text-overflow:ellipsis}
+.monthly-sort-btn:hover{color:#a7f3d0}
+.monthly-filter-btn{width:24px;height:24px;flex-shrink:0;display:inline-flex;justify-content:center;align-items:center;border:1px solid rgba(255,255,255,.35);border-radius:5px;background:rgba(255,255,255,.1);color:#fff;font-size:11px}
+.monthly-filter-btn:hover,.monthly-filter-btn.active{background:#d1fae5;color:#065f46;border-color:#a7f3d0}
+.monthly-filter-menu{position:fixed;top:0;left:0;z-index:10000;display:flex;flex-direction:column;width:min(260px,calc(100vw - 16px));max-height:70vh;overflow:hidden;background:#fff;color:#334155;border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 30px rgba(0,0,0,.18);padding:12px;white-space:normal;font-family:"Kanit",sans-serif}
+.monthly-filter-title,.monthly-filter-search,.monthly-filter-selectall,.monthly-filter-actions{flex-shrink:0}
+.monthly-filter-title{font-size:12px;font-weight:600;margin-bottom:9px;color:#0b5d46}
+.monthly-filter-search{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-family:inherit;font-size:12px;outline:none;margin-bottom:9px}
+.monthly-filter-search:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(11,122,90,.08)}
+.monthly-filter-selectall{padding:7px 3px;border-bottom:1px solid #e8eee9;margin-bottom:5px}
+.monthly-filter-options{flex:1 1 auto;min-height:60px;overflow-y:auto}
+.monthly-filter-options label,.monthly-filter-selectall label{display:flex;align-items:center;gap:8px;padding:6px 5px;border-radius:5px;font-size:12px;cursor:pointer}
+.monthly-filter-options label:hover,.monthly-filter-selectall label:hover{background:#f0f7f2}
+.monthly-filter-options input,.monthly-filter-selectall input{accent-color:var(--green)}
+.monthly-filter-actions{display:flex;justify-content:space-between;gap:8px;padding-top:10px;margin-top:8px;border-top:1px solid #e8eee9}
+.monthly-filter-actions button{border:1px solid var(--line);background:#fff;color:#52645b;padding:7px 11px;border-radius:6px;font-family:inherit;font-size:11px}
+.monthly-filter-actions .apply{background:var(--green);border-color:var(--green);color:#fff}
+.monthly-filter-actions .apply:hover{background:var(--deep)}
+.monthly-footer{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:var(--muted)}
+.monthly-count-badge{display:inline-block;background:var(--soft);color:var(--green);border-radius:20px;padding:5px 11px;font-size:11px;font-weight:500}
+.monthly-empty{text-align:center;padding:35px!important;color:#84928a!important;white-space:normal}
+
+@media(max-width:900px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.grid{grid-template-columns:1fr}}
+@media(max-width:700px){.summary-dashboard{grid-template-columns:1fr;gap:15px}.summary-chart-area{height:300px}}
+@media(max-width:560px){.hero{padding-bottom:68px}.top{align-items:flex-start}.actions{flex-direction:column}.btn{padding:8px 10px}.card{padding:16px}.stats{gap:9px}.stat{padding:14px}.fields{grid-template-columns:1fr}.field.wide{grid-column:auto}.trend-chart-area{height:290px}}
+@media(max-width:600px){.monthly-table thead th{min-width:96px;padding:8px 9px}.monthly-table tbody td{padding:9px 10px}}
+</style>
+</head>
+<body>
+<header class="hero">
+  <div class="top">
+    <div class="brand">EXCELLENCE <small>/ KPI CASE</small></div>
+    <div class="actions">
+      <button class="btn" id="refreshBtn" type="button">↻ รีเฟรชข้อมูล</button>
+      <button class="btn primary" id="backBtn" type="button">← กลับหน้าก่อนหน้า</button>
+    </div>
+  </div>
+  <div class="heading">
+    <div class="eyebrow">REPORT MANAGEMENT SYSTEM</div>
+    <h1>รายละเอียดตัวชี้วัด KPI</h1>
+    <p>ข้อมูลผลการดำเนินงานจากฐานข้อมูล REPORT_02</p>
+  </div>
+</header>
+
+<main>
+  <div class="status" role="status"><span class="dot" id="statusDot"></span><span id="statusText">กำลังเชื่อมต่อฐานข้อมูล...</span><span id="updated"></span></div>
+
+  <section class="card">
+    <div class="kpi-head"><div>
+      <span class="code" id="kpiCode">กำลังอ่านรหัส KPI...</span>
+      <h2 class="kpi-name" id="kpiName">กำลังโหลดข้อมูลตัวชี้วัด</h2>
+      <div class="meta" id="metaTags"></div>
+    </div></div>
+  </section>
+
+  <section class="stats">
+    <article class="stat"><div class="stat-label">ผลลัพธ์ (Result)</div><div class="stat-value" id="resultValue">—</div><div class="stat-note">ค่าผลการดำเนินงาน</div></article>
+    <article class="stat blue"><div class="stat-label">เป้าหมาย (Target)</div><div class="stat-value" id="targetValue">—</div><div class="stat-note">ค่าเป้าหมายที่กำหนด</div></article>
+    <article class="stat"><div class="stat-label">อัตรา (Rate)</div><div class="stat-value" id="rateValue">—</div><div class="stat-note" id="unitNote">หน่วยตามข้อมูลต้นทาง</div></article>
+    <article class="stat red"><div class="stat-label">สรุปผล</div><div class="stat-value" id="summaryValue">—</div><div class="stat-note">สถานะตามฐานข้อมูล</div></article>
+  </section>
+
+  <section class="grid">
+    <article class="card">
+      <h2 class="section-title">ข้อมูลตัวชี้วัด</h2>
+      <p class="section-sub">รายละเอียดที่ได้รับจากรายการ KPI ที่เลือก</p>
+      <div class="fields" id="detailFields"><div class="field wide">กำลังโหลด...</div></div>
+    </article>
+    <article class="card">
+      <h2 class="section-title">เกณฑ์การประเมิน</h2>
+      <p class="section-sub">สูตรและเกณฑ์ตามข้อมูลที่บันทึกไว้</p>
+      <div class="fields" id="criterionFields"><div class="field wide">กำลังโหลด...</div></div>
+    </article>
+  </section>
+
+  <section class="card">
+    <div class="month-toolbar">
+      <div>
+        <h2 class="section-title">Summary Distribution</h2>
+        <p class="section-sub" style="margin-bottom:0">สัดส่วนผลการดำเนินงาน จำแนกตามสถานะ Summary</p>
+      </div>
+      <span class="month-count" id="summaryChartCount">กำลังโหลด...</span>
+    </div>
+    <div class="summary-dashboard">
+      <div class="summary-chart-area" id="summaryChartWrap"><canvas id="monthlySummaryChart"></canvas></div>
+      <div class="summary-legend-area">
+        <div class="summary-total">
+          <div class="summary-total-label">จำนวนรายการทั้งหมด</div>
+          <div class="summary-total-value" id="summaryTotalValue">—</div>
+          <div class="summary-total-note">TOTAL RECORDS</div>
+        </div>
+        <div class="summary-legend" id="summaryLegend"><div class="chart-empty">กำลังประมวลผลข้อมูล...</div></div>
+      </div>
+    </div>
+    <p class="section-sub" id="summaryChartNotice" style="margin:12px 0 0"></p>
+  </section>
+
+  <section class="card">
+    <div class="trend-toolbar">
+      <div>
+        <h2 class="section-title">แนวโน้มผลการดำเนินงานรายเดือน</h2>
+        <p class="section-sub" style="margin-bottom:0">Monthly Trend · ค่า Summary รายเดือน เรียงตามปีงบประมาณ (ต.ค. → ก.ย.)</p>
+      </div>
+      <div class="trend-chips" id="trendChips"></div>
+    </div>
+    <div class="trend-chart-area" id="trendChartWrap"><div class="chart-empty">กำลังโหลดข้อมูล...</div></div>
+    <p class="section-sub" id="trendNotice" style="margin:12px 0 0"></p>
+  </section>
+
+  <section class="card">
+    <div class="month-toolbar">
+      <div>
+        <h2 class="section-title">ผลการดำเนินงานรายเดือนตามปีงบประมาณ</h2>
+        <p class="section-sub" style="margin-bottom:0">Monthly Performance Data · Excel AutoFilter</p>
+      </div>
+      <span class="month-count" id="monthCount">กำลังโหลดข้อมูล...</span>
+    </div>
+    <div class="monthly-table-wrap">
+      <table class="monthly-table">
+        <thead id="monthlyHead"><tr><th>กำลังโหลด...</th></tr></thead>
+        <tbody id="monthlyBody"><tr><td class="monthly-empty">กำลังโหลดข้อมูลรายเดือน...</td></tr></tbody>
+      </table>
+    </div>
+    <div class="monthly-footer">
+      <span id="monthlyFilterInfo">เลือกตัวกรองจากหัวคอลัมน์เพื่อกรองข้อมูล</span>
+      <span class="monthly-count-badge" id="monthlyFilteredCount">0 รายการ</span>
+    </div>
+  </section>
+
+  <div class="notice" id="dataNotice">หมายเหตุ: ตารางรายเดือนดึงจาก REPORT_Main_Month_02 โดยตรง และใช้ชื่อคอลัมน์จริงจากชีตเพื่อสร้างตารางอัตโนมัติ หากชีตไม่มีคอลัมน์รหัส KPI หรือปีงบประมาณ ระบบจะแจ้งเตือนเพื่อป้องกันการแสดงข้อมูลผิดตัวชี้วัด</div>
+</main>
+<footer class="footer">KPI CASE · Excellence Management System</footer>
+
+<script>
+"use strict";
+const CONFIG = {
+  API_URL: "https://script.google.com/macros/s/AKfycbyDVuHOl48Fke6Sb7D-MsVSUC4lPlOpe03mw63JdNtn9OU5Y1cGW_64Ly15JUA4p4qF/exec",
+  SHEET_NAME: "REPORT_02",
+  MONTH_SHEET_NAME: "REPORT_Main_Month_02",
+  ACCESS_KEY: "",
+  PAGE_SIZE: 100,
+  MAX_PAGES: 100,
+  BACK_URL: "./Excellence.html"
+};
+const PARAMS = new URLSearchParams(location.search);
+const STATE = {rows: [], monthRows: [], loading: false, selected: [], monthSelected: []};
+const $ = id => document.getElementById(id);
+
+const FIELD = {
+  year: ["Fisyear","FisYear","Fiscal_year","FiscalYear"],
+  group: ["kpi_Group_Des","KPI_Group","Group"],
+  excellence: ["Excellence","Excellence_Des"],
+  section: ["Tsection","Section","หน่วยงาน"],
+  kpi: ["KPI","KPI_ID","Kpi"],
+  description: ["kpi_Des","KPI_Des","Description"],
+  result: ["Result"], target: ["Target"],
+  criterion: ["Criterion","Criteria","criterion","Formula"],
+  rate: ["Rate","Nrate"], unit: ["Nunit","Unit"],
+  summary: ["Summary","Status","สรุปผล","ผลการประเมิน","สถานะ"],
+  monthYear: ["Fisyear","FisYear","Fiscal_year","FiscalYear","Fiscal Year","ปีงบประมาณ","ปีงบ"],
+  monthKpi: ["KPI","KPI_ID","Kpi","KPI_Code","KpiCode","รหัส KPI","รหัสตัวชี้วัด"],
+  monthName: ["Month","month_name","MonthName","เดือน","เดือนที่","MM","Month_No","MonthNo","FiscalMonth"]
+};
+
+/* ---------- ฟังก์ชันช่วย ---------- */
+function val(row, key) {
+  const aliases = FIELD[key] || [key];
+  for (const name of aliases)
+    if (row?.[name] != null && String(row[name]).trim() !== "") return row[name];
+  const keys = Object.keys(row || {});
+  for (const name of aliases) {
+    const found = keys.find(k => k.toLowerCase() === name.toLowerCase());
+    if (found && row[found] != null && String(row[found]).trim() !== "") return row[found];
+  }
+  return "";
+}
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const norm = v => String(v ?? "").trim().toLocaleLowerCase("th");
+const queryValue = key => PARAMS.get(key) || "";
+const fmt = n => Number(n).toLocaleString("th-TH");
+
+function setStatus(message, type = "normal") {
+  $("statusText").textContent = message;
+  $("statusDot").className = "dot" + (type === "success" ? " ok" : type === "error" ? " err" : "");
+}
+function findActualKey(row, aliases) {
+  const keys = Object.keys(row || {});
+  for (const alias of aliases) {
+    const hit = keys.find(k => k === alias) || keys.find(k => k.toLowerCase() === alias.toLowerCase());
+    if (hit) return hit;
+  }
+  return "";
+}
+function matchesParams(row) {
+  for (const [param, field] of [["year","year"],["group","group"],["excellence","excellence"],["section","section"]]) {
+    const expected = queryValue(param);
+    if (expected && norm(val(row, field)) !== norm(expected)) return false;
+  }
+  return true;
+}
+function matchesKpi(row) {
+  const wanted = queryValue("kpi");
+  if (wanted && norm(val(row, "kpi")) !== norm(wanted)) return false;
+  const description = queryValue("description");
+  if (!wanted && description && norm(val(row, "description")) !== norm(description)) return false;
+  return matchesParams(row);
+}
+function monthSortValue(row) {
+  const raw = String(val(row, "monthName") || "").trim();
+  if (!raw) return 99;
+  const numeric = Number(raw);
+  if (Number.isFinite(numeric) && numeric >= 1 && numeric <= 12) return ((numeric + 2) % 12) + 1;
+  const th = ["ตุลาคม","พฤศจิกายน","ธันวาคม","มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน"];
+  const i = th.findIndex(n => raw.includes(n));
+  if (i >= 0) return i + 1;
+  const en = ["october","november","december","january","february","march","april","may","june","july","august","september"];
+  const j = en.findIndex(n => raw.toLowerCase().includes(n));
+  return j >= 0 ? j + 1 : 99;
+}
+
+/* ---------- API ---------- */
+async function requestPage(page, sheet = CONFIG.SHEET_NAME) {
+  const response = await fetch(CONFIG.API_URL, {
+    method: "POST",
+    headers: {"Content-Type": "text/plain;charset=utf-8"},
+    body: JSON.stringify({action: "data", key: CONFIG.ACCESS_KEY,
+      params: {sheet, page, pageSize: CONFIG.PAGE_SIZE, limit: CONFIG.PAGE_SIZE}}),
+    cache: "no-store", redirect: "follow"
+  });
+  if (!response.ok) throw new Error("API ตอบกลับ HTTP " + response.status);
+  const data = await response.json();
+  if (!data || data.ok === false || data.success === false || data.error)
+    throw new Error(data?.message || data?.error || "API ไม่สามารถส่งข้อมูลได้");
+  const headers = data.headers || data.header || [];
+  const rows = (data.rows || []).map(row => {
+    if (!Array.isArray(row)) return row;
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = row[i]);
+    return obj;
+  });
+  return {rows, total: data.total ?? data.totalRows ?? data.count ?? null};
+}
+async function fetchAllRows(sheet) {
+  const all = [];
+  let total = null;
+  for (let page = 1; page <= CONFIG.MAX_PAGES; page++) {
+    const result = await requestPage(page, sheet);
+    all.push(...result.rows);
+    if (result.total !== null) total = Number(result.total);
+    if (result.rows.length < CONFIG.PAGE_SIZE || (total !== null && all.length >= total)) break;
+  }
+  return all;
+}
+function filterMonthlyRows(rows) {
+  const wantedKpi = queryValue("kpi"), wantedYear = queryValue("year");
+  const sample = rows[0] || {};
+  const kpiKey = findActualKey(sample, FIELD.monthKpi);
+  const yearKey = findActualKey(sample, FIELD.monthYear);
+  const filtered = rows.filter(row => {
+    if (wantedKpi && kpiKey && norm(row[kpiKey]) !== norm(wantedKpi)) return false;
+    if (wantedYear && yearKey && norm(row[yearKey]) !== norm(wantedYear)) return false;
+    return true;
+  });
+  return {rows: filtered, hasKpi: !!kpiKey, hasYear: !!yearKey, kpiKey, yearKey};
+}
+async function loadData() {
+  if (STATE.loading) return;
+  STATE.loading = true;
+  $("refreshBtn").disabled = true;
+  setStatus("กำลังโหลดข้อมูล KPI และข้อมูลรายเดือน...");
+  try {
+    const [mainRows, monthlyRows] = await Promise.all([
+      fetchAllRows(CONFIG.SHEET_NAME),
+      fetchAllRows(CONFIG.MONTH_SHEET_NAME)
+    ]);
+    STATE.rows = mainRows;
+    STATE.selected = mainRows.filter(matchesKpi);
+    STATE.monthRows = monthlyRows;
+    const monthResult = filterMonthlyRows(monthlyRows);
+    STATE.monthSelected = monthResult.rows;
+    render();
+    renderMonthly(monthResult);
+    $("updated").textContent = "อัปเดต " + new Date().toLocaleString("th-TH");
+    setStatus(`เชื่อมต่อสำเร็จ · KPI ${fmt(STATE.selected.length)} รายการ · ข้อมูลรายเดือน ${fmt(STATE.monthSelected.length)} รายการ`, "success");
+  } catch (error) {
+    console.error("[KPI_CASE]", error);
+    setStatus("โหลดข้อมูลไม่สำเร็จ: " + error.message, "error");
+    $("detailFields").innerHTML = `<div class="errorbox field wide">${esc(error.message)}</div>`;
+    $("monthlyBody").innerHTML = `<tr><td colspan="2" class="monthly-empty">ไม่สามารถโหลดข้อมูลรายเดือนได้: ${esc(error.message)}</td></tr>`;
+    $("monthCount").textContent = "โหลดข้อมูลไม่สำเร็จ";
+    $("trendChartWrap").innerHTML = `<div class="chart-empty">ไม่สามารถสร้างกราฟได้: ${esc(error.message)}</div>`;
+  } finally {
+    STATE.loading = false;
+    $("refreshBtn").disabled = false;
+  }
+}
+
+/* ---------- Summary Distribution (Pie) ---------- */
+let monthlySummaryChart = null;
+const PIE_COLORS = ["#0b7a5a","#2563eb","#f59e0b","#dc2626","#7c3aed","#0891b2","#64748b","#db2777","#65a30d","#9333ea"];
+
+function renderMonthlySummaryChart(rows) {
+  const wrap = $("summaryChartWrap"), legend = $("summaryLegend");
+  const count = $("summaryChartCount"), notice = $("summaryChartNotice");
+
+  if (monthlySummaryChart) { monthlySummaryChart.destroy(); monthlySummaryChart = null; }
+  $("summaryTotalValue").textContent = "—";
+
+  const empty = (chartMsg, legendMsg, countMsg, noticeMsg) => {
+    wrap.innerHTML = `<div class="chart-empty">${chartMsg}</div>`;
+    legend.innerHTML = `<div class="chart-empty">${legendMsg}</div>`;
+    count.textContent = countMsg;
+    notice.textContent = noticeMsg;
+  };
+
+  if (!rows || !rows.length)
+    return empty("ไม่พบข้อมูล Summary", "ไม่มีข้อมูล", "0 รายการ", "ไม่พบข้อมูลสำหรับสร้างกราฟ");
+
+  const summaryKey = findActualKey(rows[0] || {}, FIELD.summary);
+  if (!summaryKey)
+    return empty("ไม่พบคอลัมน์ Summary", "ตรวจสอบชื่อคอลัมน์", "ข้อมูลไม่ครบ",
+      "กรุณาตรวจสอบคอลัมน์ Summary ใน REPORT_Main_Month_02");
+
+  const counts = {};
+  rows.forEach(row => {
+    const status = String(row[summaryKey] ?? "").trim() || "ไม่ระบุ";
+    counts[status] = (counts[status] || 0) + 1;
+  });
+  const labels = Object.keys(counts);
+  const values = labels.map(l => counts[l]);
+  const total = values.reduce((a, b) => a + b, 0);
+  const percentages = values.map(v => total ? v / total * 100 : 0);
+  const colorOf = i => PIE_COLORS[i % PIE_COLORS.length];
+
+  $("summaryTotalValue").textContent = fmt(total);
+  count.textContent = fmt(total) + " รายการ";
+  wrap.innerHTML = '<canvas id="monthlySummaryChart"></canvas>';
+
+  monthlySummaryChart = new Chart($("monthlySummaryChart"), {
+    type: "pie",
+    data: {labels, datasets: [{data: values, backgroundColor: labels.map((_, i) => colorOf(i)),
+      borderColor: "#fff", borderWidth: 4, hoverOffset: 12}]},
+    options: {
+      responsive: true, maintainAspectRatio: false, layout: {padding: 8},
+      plugins: {
+        legend: {display: false},
+        tooltip: {callbacks: {label: c =>
+          `${c.label}: ${fmt(values[c.dataIndex])} รายการ (${percentages[c.dataIndex].toFixed(2)}%)`}}
+      }
+    },
+    plugins: [{
+      id: "pieLabels",
+      afterDatasetsDraw(chart) {
+        const {ctx} = chart;
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#fff";
+        chart.getDatasetMeta(0).data.forEach((arc, i) => {
+          if (percentages[i] < 4) return;   // ชิ้นเล็กเกินไป ไม่แสดงตัวเลข
+          const p = arc.tooltipPosition();
+          ctx.font = "600 13px Kanit";
+          ctx.fillText(fmt(values[i]), p.x, p.y - 8);
+          ctx.font = "400 11px Kanit";
+          ctx.fillText(percentages[i].toFixed(1) + "%", p.x, p.y + 10);
+        });
+        ctx.restore();
+      }
+    }]
+  });
+
+  legend.innerHTML = labels.map((label, i) => `
+    <div class="summary-legend-item">
+      <div class="summary-legend-left">
+        <span class="summary-legend-dot" style="background:${colorOf(i)}"></span>
+        <span class="summary-legend-name">${esc(label)}</span>
+      </div>
+      <div class="summary-legend-right">
+        <div class="summary-legend-value">${fmt(values[i])} รายการ</div>
+        <div class="summary-legend-percent">${percentages[i].toFixed(2)}%</div>
+      </div>
+    </div>`).join("");
+
+  notice.textContent = `แสดงข้อมูล ${fmt(rows.length)} รายการ · KPI: ${queryValue("kpi") || "ทั้งหมด"} · ปีงบประมาณ: ${queryValue("year") || "ทั้งหมด"}`;
+}
+
+/* ---------- เดือนปีงบประมาณ (ต.ค. → ก.ย.) ---------- */
+const TH_MONTHS_FULL = ["ตุลาคม","พฤศจิกายน","ธันวาคม","มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน"];
+const TH_MONTHS_SHORT = ["ต.ค.","พ.ย.","ธ.ค.","ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย."];
+const EN_MONTHS = ["oct","nov","dec","jan","feb","mar","apr","may","jun","jul","aug","sep"];
+// คืนลำดับเดือนในปีงบประมาณ 1-12 (1 = ตุลาคม) หรือ 0 ถ้าอ่านไม่ได้
+function fiscalMonthIndex(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return 0;
+  const n = Number(s);
+  if (Number.isFinite(n) && n >= 1 && n <= 12) return ((n + 2) % 12) + 1;
+  let i = TH_MONTHS_FULL.findIndex(m => s.includes(m));
+  if (i < 0) i = TH_MONTHS_SHORT.findIndex(m => s.includes(m));
+  if (i < 0) i = EN_MONTHS.findIndex(m => s.toLowerCase().includes(m));
+  return i >= 0 ? i + 1 : 0;
+}
+
+/* ---------- กราฟเส้นรายเดือน: เฉพาะค่า Summary ---------- */
+let monthlyTrendChart = null;
+const STATUS_COLORS = ["#2563eb","#f59e0b","#7c3aed","#0891b2","#db2777","#64748b"];
+const toNum = v => {
+  const s = String(v ?? "").replace(/[,%\s]/g, "");
+  if (s === "") return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+};
+
+function renderMonthlyTrend(rows) {
+  const wrap = $("trendChartWrap"), legend = $("trendChips"), notice = $("trendNotice");
+  if (monthlyTrendChart) { monthlyTrendChart.destroy(); monthlyTrendChart = null; }
+  legend.innerHTML = "";
+  const empty = msg => { wrap.innerHTML = `<div class="chart-empty">${msg}</div>`; notice.textContent = ""; };
+  if (!rows || !rows.length) return empty("ไม่พบข้อมูลรายเดือนสำหรับสร้างกราฟ");
+
+  const sample = rows[0];
+  const summaryKey = findActualKey(sample, FIELD.summary);
+  const monthKey = findActualKey(sample, FIELD.monthName);
+  if (!summaryKey) return empty("ไม่พบคอลัมน์ Summary ในชีตรายเดือน");
+  if (!monthKey) return empty("ไม่พบคอลัมน์เดือนในชีตรายเดือน");
+
+  // ค่า Summary ของแต่ละเดือน ต.ค. → ก.ย. (ถ้าเดือนซ้ำ ใช้แถวล่าสุด)
+  const byMonth = new Array(12).fill(null);
+  rows.forEach(r => {
+    const v = String(r[summaryKey] ?? "").trim();
+    const idx = fiscalMonthIndex(r[monthKey]);
+    if (v && idx) byMonth[idx - 1] = v;
+  });
+  const filled = byMonth.filter(v => v !== null);
+  if (!filled.length) return empty("ไม่พบค่า Summary ที่จับคู่กับเดือนได้");
+
+  const numeric = filled.every(v => toNum(v) !== null);
+  let levels = [], colorOf, data, yScale;
+
+  if (numeric) {
+    data = byMonth.map(v => v === null ? null : toNum(v));
+    colorOf = () => "#0b7a5a";
+    yScale = {type: "linear", beginAtZero: false, grid: {color: "#edf1ee"}, border: {display: false},
+      ticks: {font: {family: "Kanit", size: 11}, color: "#718078", callback: v => v.toLocaleString("th-TH")}};
+  } else {
+    // แกน Y แบบหมวดหมู่: ไม่ผ่าน (ล่าง) → สถานะอื่น → ผ่าน (บน)
+    const uniq = [...new Set(filled)];
+    levels = [...uniq.filter(s => s === "ไม่ผ่าน"), ...uniq.filter(s => s !== "ผ่าน" && s !== "ไม่ผ่าน"), ...uniq.filter(s => s === "ผ่าน")];
+    const extra = {};
+    let n = 0;
+    colorOf = s => s === "ผ่าน" ? "#0b7a5a" : s === "ไม่ผ่าน" ? "#dc2626" : (extra[s] ??= STATUS_COLORS[n++ % STATUS_COLORS.length]);
+    levels.forEach(colorOf);
+    data = byMonth;
+    yScale = {type: "category", labels: levels, offset: true, grid: {color: "#edf1ee"}, border: {display: false},
+      ticks: {font: {family: "Kanit", size: 12, weight: "500"}, color: "#34483e"}};
+  }
+
+  const pointColors = byMonth.map(v => v === null ? "#cbd5d0" : colorOf(v));
+  wrap.innerHTML = '<canvas id="monthlyTrendChart"></canvas>';
+  monthlyTrendChart = new Chart($("monthlyTrendChart"), {
+    type: "line",
+    data: {labels: TH_MONTHS_SHORT, datasets: [{
+      label: "Summary", data,
+      borderColor: "#0b7a5a", borderWidth: 3.5, tension: numeric ? .35 : 0, spanGaps: true,
+      fill: true,
+      backgroundColor: ctx => {
+        const area = ctx.chart.chartArea;
+        if (!area) return "rgba(11,122,90,.1)";
+        const g = ctx.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+        g.addColorStop(0, "rgba(11,122,90,.22)");
+        g.addColorStop(1, "rgba(11,122,90,0)");
+        return g;
+      },
+      segment: {borderColor: ctx => pointColors[ctx.p1DataIndex] === "#cbd5d0" ? "#cbd5d0" : pointColors[ctx.p1DataIndex]},
+      pointRadius: 7, pointHoverRadius: 10, pointBorderWidth: 3, pointBorderColor: "#fff",
+      pointBackgroundColor: pointColors, pointHoverBorderColor: "#fff"
+    }]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: {mode: "index", intersect: false},
+      layout: {padding: {top: 10, right: 12, bottom: 4}},
+      plugins: {
+        legend: {display: false},
+        tooltip: {
+          backgroundColor: "#08382b", padding: 12, cornerRadius: 10, displayColors: false,
+          titleFont: {family: "Kanit", weight: "600"}, bodyFont: {family: "Kanit"},
+          callbacks: {
+            title: items => TH_MONTHS_FULL[items[0].dataIndex],
+            label: c => c.raw === null ? "ไม่มีข้อมูล" : "Summary: " + (numeric ? Number(c.raw).toLocaleString("th-TH", {maximumFractionDigits: 2}) : c.raw)
+          }
+        }
+      },
+      scales: {
+        x: {grid: {display: false}, border: {display: false}, ticks: {font: {family: "Kanit", size: 12}, color: "#718078"}},
+        y: yScale
+      }
+    }
+  });
+
+  if (numeric) {
+    legend.innerHTML = `<span class="trend-chip static" style="--c:#0b7a5a"><i></i>Summary</span>`;
+  } else {
+    legend.innerHTML = levels.map(s =>
+      `<span class="trend-chip static" style="--c:${colorOf(s)}"><i></i>${esc(s)} <b>${fmt(byMonth.filter(v => v === s).length)} เดือน</b></span>`).join("");
+  }
+  notice.textContent = `แสดงค่า Summary ${fmt(filled.length)} จาก 12 เดือน · เดือนที่ไม่มีข้อมูลจะแสดงเป็นจุดสีเทา`;
+}
+
+/* ---------- ตารางรายเดือน + ตัวกรองแบบ Excel ---------- */
+let monthlyDisplayKeys = [];
+let monthlyBaseRows = [];
+let monthlyColumnFilters = {};
+let monthlySort = {key: "", direction: 1};
+let monthlyMonthKey = "", monthlySummaryKey = "";
+
+const cellText = (row, key) => String(row[key] ?? "").trim();
+function cellHtml(row, key) {
+  const raw = row[key];
+  if (key === monthlyMonthKey && cellText(row, key)) {
+    const i = fiscalMonthIndex(raw);
+    return `<span class="month-pill">${i ? `<b>${String(i).padStart(2, "0")}</b>` : ""}${esc(raw)}</span>`;
+  }
+  if (key === monthlySummaryKey && cellText(row, key)) return statusPill(cellText(row, key));
+  return esc(raw ?? "—");
+}
+
+function getMonthlyUniqueValues(key) {
+  const set = new Set(monthlyBaseRows.map(r => cellText(r, key)));
+  const list = [...set];
+  if (key === monthlyMonthKey) return list.sort((a, b) => (fiscalMonthIndex(a) || 99) - (fiscalMonthIndex(b) || 99));
+  return list.sort((a, b) => a.localeCompare(b, "th", {numeric: true, sensitivity: "base"}));
+}
+function isMonthlyFiltered(key) {
+  const selected = monthlyColumnFilters[key];
+  return Array.isArray(selected) && selected.length !== getMonthlyUniqueValues(key).length;
+}
+function renderMonthlyHeader() {
+  $("monthlyHead").innerHTML = `<tr>${monthlyDisplayKeys.map(key => {
+    const arrow = monthlySort.key === key ? (monthlySort.direction === 1 ? " ↑" : " ↓") : "";
+    return `<th class="monthly-th"><div class="monthly-th-content">
+      <button type="button" class="monthly-sort-btn" data-sort-key="${esc(key)}" title="เรียงลำดับ ${esc(key)}">${esc(key)}${arrow}</button>
+      <button type="button" class="monthly-filter-btn ${isMonthlyFiltered(key) ? "active" : ""}" data-filter-key="${esc(key)}" title="กรอง ${esc(key)}">▼</button>
+    </div></th>`;
+  }).join("")}</tr>`;
+}
+
+function closeMonthlyMenus() {
+  document.querySelectorAll(".monthly-filter-menu").forEach(m => m.remove());
+}
+
+// วางเมนูให้อยู่ในจอเสมอ: เปิดลงล่างถ้าพื้นที่พอ ไม่พอก็เปิดขึ้นบน
+function placeMonthlyMenu(menu, button) {
+  const gap = 8;
+  const r = button.getBoundingClientRect();
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const width = Math.min(menu.offsetWidth || 260, vw - gap * 2);
+  const left = Math.min(Math.max(gap, r.right - width), vw - width - gap);
+
+  const below = vh - r.bottom - gap;
+  const above = r.top - gap;
+  const openUp = below < 260 && above > below;
+  const maxH = Math.max(200, Math.min(openUp ? above : below, vh - gap * 2));
+
+  menu.style.maxHeight = maxH + "px";
+  menu.style.left = left + "px";
+
+  const h = Math.min(menu.offsetHeight, maxH);
+  menu.style.top = (openUp ? Math.max(gap, r.top - h - 4) : r.bottom + 4) + "px";
+}
+
+function openMonthlyFilter(key, button) {
+  closeMonthlyMenus();
+
+  const values = getMonthlyUniqueValues(key);
+  const selected = monthlyColumnFilters[key] ?? [...values];
+
+  const menu = document.createElement("div");
+  menu.className = "monthly-filter-menu";
+  menu.innerHTML = `
+    <div class="monthly-filter-title">กรองข้อมูล: ${esc(key)}</div>
+    <input type="search" class="monthly-filter-search" placeholder="ค้นหาค่า..." autocomplete="off">
+    <div class="monthly-filter-selectall">
+      <label><input type="checkbox" class="monthly-select-all" ${selected.length === values.length ? "checked" : ""}><strong>เลือกทั้งหมด</strong></label>
+    </div>
+    <div class="monthly-filter-options">
+      ${values.map(v => `<label><input type="checkbox" class="monthly-value-check" value="${esc(v)}" ${selected.includes(v) ? "checked" : ""}><span>${esc(v || "(ว่าง)")}</span></label>`).join("")}
+    </div>
+    <div class="monthly-filter-actions">
+      <button type="button" class="monthly-clear-one">ล้างตัวกรอง</button>
+      <button type="button" class="apply monthly-apply">ตกลง</button>
+    </div>`;
+
+  document.body.appendChild(menu);       // ลอยเหนือหน้า ไม่ถูกตัดโดยกล่องตาราง
+  placeMonthlyMenu(menu, button);
+
+  const search = menu.querySelector(".monthly-filter-search");
+  const checks = [...menu.querySelectorAll(".monthly-value-check")];
+  const selectAll = menu.querySelector(".monthly-select-all");
+  const isVisible = input => input.closest("label").style.display !== "none";
+
+  search.addEventListener("input", () => {
+    const keyword = norm(search.value);
+    menu.querySelectorAll(".monthly-filter-options label").forEach(label => {
+      label.style.display = norm(label.textContent).includes(keyword) ? "flex" : "none";
+    });
+  });
+  selectAll.addEventListener("change", () => {
+    checks.forEach(input => { if (isVisible(input)) input.checked = selectAll.checked; });
+  });
+  checks.forEach(input => input.addEventListener("change", () => {
+    selectAll.checked = checks.every(item => item.checked);
+  }));
+
+  const refresh = () => { closeMonthlyMenus(); renderMonthlyHeader(); renderMonthlyTableBody(); };
+
+  menu.querySelector(".monthly-apply").addEventListener("click", () => {
+    const checked = checks.filter(i => i.checked).map(i => i.value);
+    if (checked.length === values.length) delete monthlyColumnFilters[key];
+    else monthlyColumnFilters[key] = checked;
+    refresh();
+  });
+  menu.querySelector(".monthly-clear-one").addEventListener("click", () => {
+    delete monthlyColumnFilters[key];
+    refresh();
+  });
+
+  search.focus();
+}
+
+function filterMonthlyData() {
+  return monthlyBaseRows.filter(row => monthlyDisplayKeys.every(key => {
+    const selected = monthlyColumnFilters[key];
+    return !Array.isArray(selected) || selected.includes(cellText(row, key));
+  }));
+}
+function sortMonthlyData(rows) {
+  const {key, direction} = monthlySort;
+  if (!key) return rows;
+  return [...rows].sort((a, b) => {
+    const A = cellText(a, key), B = cellText(b, key);
+    if (key === monthlyMonthKey) return ((fiscalMonthIndex(A) || 99) - (fiscalMonthIndex(B) || 99)) * direction;
+    const nA = Number(A.replace(/,/g, "")), nB = Number(B.replace(/,/g, ""));
+    if (A !== "" && B !== "" && Number.isFinite(nA) && Number.isFinite(nB)) return (nA - nB) * direction;
+    return A.localeCompare(B, "th", {numeric: true, sensitivity: "base"}) * direction;
+  });
+}
+function renderMonthlyTableBody() {
+  const sorted = sortMonthlyData(filterMonthlyData());
+  $("monthlyBody").innerHTML = sorted.length
+    ? sorted.map(row => `<tr>${monthlyDisplayKeys.map(k => `<td>${cellHtml(row, k)}</td>`).join("")}</tr>`).join("")
+    : `<tr><td colspan="${Math.max(monthlyDisplayKeys.length, 1)}" class="monthly-empty">ไม่พบข้อมูลตามเงื่อนไขที่เลือก</td></tr>`;
+
+  $("monthlyFilteredCount").textContent = `${fmt(sorted.length)} / ${fmt(monthlyBaseRows.length)} รายการ`;
+  $("monthCount").textContent = `${fmt(sorted.length)} รายการ`;
+
+  const active = Object.keys(monthlyColumnFilters).length;
+  $("monthlyFilterInfo").textContent = active
+    ? `กำลังกรองข้อมูล ${active} คอลัมน์`
+    : "แสดงข้อมูลทั้งหมด · คลิก ▼ ที่หัวคอลัมน์เพื่อกรอง";
+}
+
+function renderMonthly(meta) {
+  const rows = [...STATE.monthSelected].sort((a, b) => monthSortValue(a) - monthSortValue(b));
+  const body = $("monthlyBody"), head = $("monthlyHead");
+  const message = (headText, text) => {
+    head.innerHTML = `<tr><th>${headText}</th></tr>`;
+    body.innerHTML = `<tr><td class="monthly-empty">${text}</td></tr>`;
+  };
+
+  renderMonthlySummaryChart(rows);
+  renderMonthlyTrend(rows);
+
+  if (!STATE.monthRows.length) {
+    $("monthCount").textContent = "ไม่พบข้อมูลในชีต " + CONFIG.MONTH_SHEET_NAME;
+    return message("ข้อมูลรายเดือน", "ชีตไม่มีข้อมูล หรือ API ไม่ส่งข้อมูลกลับมา");
+  }
+
+  const sample = STATE.monthRows[0] || {};
+
+  if (!meta.hasKpi || !meta.hasYear) {
+    const missing = [!meta.hasKpi ? "รหัส KPI" : "", !meta.hasYear ? "ปีงบประมาณ" : ""].filter(Boolean).join(" และ ");
+    $("monthCount").textContent = "ต้องตรวจสอบคอลัมน์ในชีต";
+    return message("ข้อมูลรายเดือน", `ไม่พบคอลัมน์${esc(missing)} กรุณาตรวจสอบหัวคอลัมน์ใน ${esc(CONFIG.MONTH_SHEET_NAME)}`);
+  }
+
+  if (!rows.length) {
+    $("monthCount").textContent = "ไม่พบข้อมูลรายเดือน";
+    return message("เดือน", "ไม่พบข้อมูลสำหรับ KPI และปีงบประมาณที่เลือก");
+  }
+
+  const monthKey = findActualKey(sample, FIELD.monthName);
+  monthlyDisplayKeys = Object.keys(sample).filter(k => k !== meta.kpiKey && k !== meta.yearKey);
+  if (monthKey) monthlyDisplayKeys = [monthKey, ...monthlyDisplayKeys.filter(k => k !== monthKey)];
+
+  monthlyMonthKey = monthKey;
+  monthlySummaryKey = findActualKey(sample, FIELD.summary);
+  // แปลงค่าเดือนเป็นชื่อเดือนภาษาไทย (ต.ค. → ก.ย.)
+  monthlyBaseRows = rows.map(r => {
+    const i = monthKey ? fiscalMonthIndex(r[monthKey]) : 0;
+    return i ? {...r, [monthKey]: TH_MONTHS_FULL[i - 1]} : r;
+  });
+  monthlyColumnFilters = {};
+  monthlySort = {key: "", direction: 1};
+  renderMonthlyHeader();
+  renderMonthlyTableBody();
+}
+
+/* ---------- รายละเอียด KPI ---------- */
+function statusPill(status) {
+  const cls = status === "ผ่าน" ? "pass" : status === "ไม่ผ่าน" ? "fail" : "";
+  return `<span class="pill ${cls}">${esc(status || "ไม่ระบุสถานะ")}</span>`;
+}
+function fieldBlock(label, value, wide = false) {
+  return `<div class="field${wide ? " wide" : ""}"><div class="label">${esc(label)}</div><div class="value">${esc(value || "—")}</div></div>`;
+}
+function render() {
+  const chosen = STATE.selected[0] || null;
+  const c = chosen || {};
+  $("kpiCode").textContent = "KPI: " + (chosen ? (val(c, "kpi") || "—") : (queryValue("kpi") || "ไม่พบรหัส KPI"));
+  $("kpiName").textContent = chosen
+    ? (val(c, "description") || val(c, "kpi") || "รายละเอียดตัวชี้วัด")
+    : (queryValue("description") || "ไม่พบข้อมูลตัวชี้วัด");
+  $("metaTags").innerHTML = [
+    ["ปีงบประมาณ", queryValue("year") || val(c, "year")],
+    ["กลุ่ม", queryValue("group") || val(c, "group")],
+    ["Excellence", queryValue("excellence") || val(c, "excellence")],
+    ["หน่วยงาน", queryValue("section") || val(c, "section")]
+  ].filter(x => x[1]).map(x => `<span class="tag">${esc(x[0])}: ${esc(x[1])}</span>`).join("");
+
+  $("resultValue").textContent = chosen ? (val(c, "result") || "—") : "—";
+  $("targetValue").textContent = chosen ? (val(c, "target") || "—") : "—";
+  $("rateValue").textContent = chosen ? (val(c, "rate") || "—") : "—";
+  $("unitNote").textContent = chosen ? "หน่วย: " + (val(c, "unit") || "ไม่ระบุ") : "หน่วยตามข้อมูลต้นทาง";
+  $("summaryValue").innerHTML = chosen ? statusPill(String(val(c, "summary") || "ไม่ระบุสถานะ")) : "—";
+
+  if (!chosen) {
+    $("detailFields").innerHTML = '<div class="empty field wide">ไม่พบข้อมูล KPI ที่ตรงกับพารามิเตอร์จากหน้าก่อนหน้า</div>';
+    $("criterionFields").innerHTML = '<div class="empty field wide">ตรวจสอบรหัส KPI และตัวกรองใน URL หรือข้อมูลใน REPORT_02</div>';
+    return;
+  }
+  $("detailFields").innerHTML = [
+    fieldBlock("ปีงบประมาณ", val(c, "year")),
+    fieldBlock("รหัส KPI", val(c, "kpi")),
+    fieldBlock("กลุ่มตัวชี้วัด", val(c, "group")),
+    fieldBlock("Excellence", val(c, "excellence")),
+    fieldBlock("หน่วยงาน", val(c, "section")),
+    fieldBlock("หน่วย (Nunit)", val(c, "unit"))
+  ].join("");
+  $("criterionFields").innerHTML = [
+    fieldBlock("เกณฑ์ (Criterion)", val(c, "criterion"), true),
+    fieldBlock("เป้าหมาย (Target)", val(c, "target")),
+    fieldBlock("ผลลัพธ์ (Result)", val(c, "result")),
+    fieldBlock("อัตรา (Rate)", val(c, "rate")),
+    fieldBlock("สรุปผล (Summary)", val(c, "summary"))
+  ].join("");
+}
+
+/* ---------- เหตุการณ์ (ผูกครั้งเดียว) ---------- */
+$("monthlyHead").addEventListener("click", event => {
+  const filterBtn = event.target.closest("[data-filter-key]");
+  if (filterBtn) {
+    openMonthlyFilter(filterBtn.dataset.filterKey, filterBtn);
+    return;
+  }
+  const sortBtn = event.target.closest("[data-sort-key]");
+  if (sortBtn) {
+    const key = sortBtn.dataset.sortKey;
+    if (monthlySort.key === key) monthlySort.direction *= -1;
+    else monthlySort = {key, direction: 1};
+    renderMonthlyHeader();
+    renderMonthlyTableBody();
+  }
+});
+
+// ปิดเมนูเมื่อคลิกข้างนอก / กด Esc / เลื่อนหน้า / ย่อขยายจอ (เมนูลอยแยกจากปุ่ม)
+document.addEventListener("click", event => {
+  if (event.target.closest(".monthly-filter-menu") || event.target.closest("[data-filter-key]")) return;
+  closeMonthlyMenus();
+});
+document.addEventListener("keydown", event => { if (event.key === "Escape") closeMonthlyMenus(); });
+window.addEventListener("resize", closeMonthlyMenus);
+window.addEventListener("scroll", event => {
+  if (!event.target.closest?.(".monthly-filter-menu")) closeMonthlyMenus();
+}, true);
+
+$("refreshBtn").addEventListener("click", loadData);
+$("backBtn").addEventListener("click", () => {
+  if (history.length > 1) history.back();
+  else location.href = CONFIG.BACK_URL;
+});
+
+loadData();
+</script>
+</body>
+</html>
