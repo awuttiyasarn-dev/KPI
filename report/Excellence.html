@@ -123,6 +123,199 @@ tbody tr:last-child td{border-bottom:0}
   .result-row{gap:9px;padding:11px 9px}.result-number{font-size:13px}.result-detail{font-size:10px}
 }
 @media(prefers-reduced-motion:reduce){.result-row,.result-row *{transition:none!important}}
+
+/* =========================================
+   MODERN KPI TABLE
+========================================= */
+
+.panel {
+  background: #fff;
+  border: 1px solid #e5eee9;
+  border-radius: 18px;
+  box-shadow: 0 8px 28px rgba(15, 56, 42, .055);
+  overflow: hidden;
+}
+
+.panel-head {
+  padding: 20px 22px;
+  background: linear-gradient(120deg, #ffffff, #f7fcf9);
+  border-bottom: 1px solid #e8efeb;
+}
+
+.panel-head h3 {
+  color: #075c45;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.panel-head p {
+  color: #82918a;
+  font-size: 12px;
+}
+
+.table-wrap {
+  width: 100%;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #b8d8c8 #f4f8f6;
+}
+
+table {
+  width: 100%;
+  min-width: 1250px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 14px 13px;
+  background: #f1f8f4;
+  color: #315d4a;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid #dcebe2;
+}
+
+tbody td {
+  padding: 13px;
+  color: #43554c;
+  font-size: 12px;
+  vertical-align: middle;
+  border-bottom: 1px solid #edf2ef;
+  transition: background .15s ease;
+}
+
+tbody tr:nth-child(even) {
+  background: #fbfdfc;
+}
+
+tbody tr:hover {
+  background: #eff9f3;
+}
+
+tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* KPI Code */
+.kpi-code {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: #edf5ff;
+  color: #2563a8;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Description */
+.desc {
+  min-width: 240px;
+  max-width: 400px;
+  line-height: 1.8;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Summary */
+.summary-cell {
+  min-width: 130px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+/* Numeric */
+.numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* View button */
+.action-cell {
+  width: 65px;
+  text-align: center;
+}
+
+.kpi-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid #cce8d8;
+  border-radius: 10px;
+  background: #effaf3;
+  color: #087f5b;
+  cursor: pointer;
+  transition: all .2s ease;
+}
+
+.kpi-view-btn:hover {
+  background: #087f5b;
+  border-color: #087f5b;
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(8, 127, 91, .2);
+}
+
+.kpi-view-btn svg {
+  width: 17px;
+  height: 17px;
+  display: block;
+}
+
+.kpi-view-btn:focus-visible {
+  outline: 3px solid #a7f3d0;
+  outline-offset: 2px;
+}
+
+/* Table footer */
+.table-footer {
+  padding: 15px 20px;
+  background: #fbfdfc;
+  border-top: 1px solid #e8efeb;
+}
+
+.page-btn {
+  min-width: 36px;
+  border-radius: 9px;
+  transition: .2s ease;
+}
+
+.page-btn:hover:not(:disabled) {
+  border-color: #087f5b;
+  color: #087f5b;
+}
+
+.page-btn.active {
+  background: #087f5b;
+  border-color: #087f5b;
+  box-shadow: 0 3px 8px rgba(8, 127, 91, .18);
+}
+
+@media(max-width:600px) {
+  .panel {
+    border-radius: 14px;
+  }
+
+  .panel-head {
+    padding: 15px;
+  }
+
+  tbody td {
+    padding: 11px 10px;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -499,56 +692,197 @@ tbody tr:last-child td{border-bottom:0}
     });
   }
 
-  /* ---------- กราฟแท่งซ้อน Excellence × Summary ---------- */
-  function renderExcellenceSummaryChart(rows) {
-    const canvas = $("excellenceSummaryChart");
-    if (!canvas || typeof Chart === "undefined") return;
+/* ---------- กราฟแท่งซ้อน Excellence × Summary ---------- */
+function renderExcellenceSummaryChart(rows) {
+  const canvas = $("excellenceSummaryChart");
+  if (!canvas || typeof Chart === "undefined") return;
 
-    const byExc = new Map(), statusTotals = new Map();
-    rows.forEach(r => {
-      const ex = r.excellence || "ไม่ระบุ Excellence", st = r.summary || "ไม่มีข้อมูล";
-      if (!byExc.has(ex)) byExc.set(ex, {});
-      byExc.get(ex)[st] = (byExc.get(ex)[st] || 0) + 1;
-      statusTotals.set(st, (statusTotals.get(st) || 0) + 1);
-    });
-    const sum = o => Object.values(o).reduce((a, b) => a + b, 0);
-    const list = [...byExc.entries()].sort((a, b) => sum(b[1]) - sum(a[1]));
-    // เรียงสถานะตามจำนวนเหมือนกราฟโดนัท สีจึงตรงกัน
-    const statuses = [...statusTotals.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);
+  const byExc = new Map();
+  const statusTotals = new Map();
 
-    $("excBarTotal").textContent = list.length.toLocaleString("th-TH") + " Excellence";
-    if (excellenceBarChart) { excellenceBarChart.destroy(); excellenceBarChart = null; }
-    $("excBarWrap").style.height = Math.max(300, list.length * 46 + 110) + "px";
-    if (!list.length) return;
+  // จัดกลุ่มข้อมูล Excellence × Summary
+  (Array.isArray(rows) ? rows : []).forEach(r => {
+    const ex = String(r.excellence || "").trim() || "ไม่ระบุ Excellence";
+    const st = String(r.summary || "").trim() || "ไม่มีข้อมูล";
 
-    excellenceBarChart = new Chart(canvas, {
-      type: "bar",
-      data: {
-        labels: list.map(e => e[0]),
-        datasets: statuses.map((st, i) => ({
-          label: st, data: list.map(e => e[1][st] || 0),
-          backgroundColor: colorAt(i), borderRadius: 5, borderSkipped: false
-        }))
-      },
-      options: {
-        indexAxis: "y", responsive: true, maintainAspectRatio: false,
-        layout: {padding: {right: 140}},
-        interaction: {mode: "index", intersect: false},
-        scales: {
-          x: {stacked: true, beginAtZero: true, ticks: {precision: 0}, grid: {color: "#eef2f1"}},
-          y: {stacked: true, grid: {display: false}}
-        },
-        plugins: {
-          legend: {position: "bottom", labels: {usePointStyle: true, pointStyle: "circle", font: {family: "Kanit", size: 11}}},
-          tooltip: {callbacks: {label: c => {
-            const t = c.chart.data.datasets.reduce((a, d) => a + (d.data[c.dataIndex] || 0), 0);
-            return " " + c.dataset.label + ": " + fmt(c.raw) + " รายการ (" + (t ? c.raw / t * 100 : 0).toFixed(1) + "%)";
-          }}}
+    if (!byExc.has(ex)) byExc.set(ex, {});
+    byExc.get(ex)[st] = (byExc.get(ex)[st] || 0) + 1;
+
+    statusTotals.set(st, (statusTotals.get(st) || 0) + 1);
+  });
+
+  const sum = obj =>
+    Object.values(obj).reduce((a, b) => a + b, 0);
+
+  // เรียง Excellence ตามจำนวน KPI มากไปน้อย
+  const list = [...byExc.entries()]
+    .sort((a, b) => sum(b[1]) - sum(a[1]));
+
+  // เรียงสถานะตามจำนวน เพื่อให้สีตรงกับกราฟโดนัท
+  const statuses = [...statusTotals.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(e => e[0]);
+
+  $("excBarTotal").textContent =
+    list.length.toLocaleString("th-TH") + " Excellence";
+
+  if (excellenceBarChart) {
+    excellenceBarChart.destroy();
+    excellenceBarChart = null;
+  }
+
+  const wrap = $("excBarWrap");
+  if (wrap) {
+    wrap.style.height = Math.max(300, list.length * 46 + 110) + "px";
+  }
+
+  if (!list.length) return;
+
+  // Plugin แสดงจำนวนรวมท้ายแท่ง
+  const totalLabelPlugin = {
+    id: "excellenceTotalLabel",
+
+    afterDatasetsDraw(chart) {
+      const { ctx, scales: { x } } = chart;
+
+      ctx.save();
+      ctx.font = '600 11px "Kanit", sans-serif';
+      ctx.fillStyle = "#475569";
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "left";
+
+      list.forEach((entry, index) => {
+        const total = sum(entry[1]);
+        const xPosition = x.getPixelForValue(total);
+        const yPosition = chart.getDatasetMeta(0).data[index]?.y;
+
+        if (typeof yPosition !== "number") return;
+
+        ctx.fillText(
+          total.toLocaleString("th-TH") + " รายการ",
+          xPosition + 7,
+          yPosition
+        );
+      });
+
+      ctx.restore();
+    }
+  };
+
+  excellenceBarChart = new Chart(canvas, {
+    type: "bar",
+
+    data: {
+      labels: list.map(e => e[0]),
+
+      datasets: statuses.map((st, i) => ({
+        label: st,
+        data: list.map(e => e[1][st] || 0),
+        backgroundColor: colorAt(i),
+        borderRadius: 5,
+        borderSkipped: false,
+        barPercentage: 0.72,
+        categoryPercentage: 0.78
+      }))
+    },
+
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      maintainAspectRatio: false,
+
+      layout: {
+        padding: {
+          right: 100
         }
       },
-      plugins: [stackLabelPlugin]
-    });
-  }
+
+      interaction: {
+        mode: "index",
+        intersect: false
+      },
+
+      scales: {
+        x: {
+          stacked: true,
+          beginAtZero: true,
+          ticks: {
+            precision: 0,
+            font: {
+              family: "Kanit",
+              size: 10
+            }
+          },
+          grid: {
+            color: "#eef2f1"
+          }
+        },
+
+        y: {
+          stacked: true,
+          grid: {
+            display: false
+          },
+          ticks: {
+            font: {
+              family: "Kanit",
+              size: 11
+            }
+          }
+        }
+      },
+
+      plugins: {
+        legend: {
+          position: "bottom",
+          labels: {
+            usePointStyle: true,
+            pointStyle: "circle",
+            padding: 16,
+            font: {
+              family: "Kanit",
+              size: 11
+            }
+          }
+        },
+
+        tooltip: {
+          callbacks: {
+            label: context => {
+              const total = context.chart.data.datasets.reduce(
+                (a, d) => a + (Number(d.data[context.dataIndex]) || 0),
+                0
+              );
+
+              const value = Number(context.raw) || 0;
+              const percent = total ? (value / total * 100) : 0;
+
+              return (
+                " " + context.dataset.label +
+                ": " + fmt(value) +
+                " รายการ (" + percent.toFixed(1) + "%)"
+              );
+            },
+
+            footer: items => {
+              const total = items.reduce(
+                (a, item) => a + (Number(item.raw) || 0),
+                0
+              );
+
+              return "รวมทั้งหมด: " + fmt(total) + " รายการ";
+            }
+          }
+        }
+      }
+    },
+
+    plugins: [
+      stackLabelPlugin,
+      totalLabelPlugin
+    ].filter(Boolean)
+  });
+}
 
   /* ---------- API ---------- */
   async function apiRequest(action, requestParams) {
@@ -682,35 +1016,241 @@ tbody tr:last-child td{border-bottom:0}
     $("totalSummary").textContent = n(rows.filter(r => r.summary).length);
   }
 
-  /* ---------- ตาราง ---------- */
-  const cell = (value, cls = "") => '<td' + (cls ? ' class="' + cls + '"' : '') + '>' + escapeHTML(text(value) || "—") + '</td>';
+  
 
-  function renderTable() {
-    const rows = state.filteredRows, total = rows.length;
-    const pages = Math.max(1, Math.ceil(total / CONFIG.PAGE_ROWS));
-    state.page = Math.min(Math.max(1, state.page), pages);
-    const start = (state.page - 1) * CONFIG.PAGE_ROWS;
-    const pageRows = rows.slice(start, start + CONFIG.PAGE_ROWS);
+/* ============================================================
+   TABLE : MODERN KPI TABLE
+   ============================================================ */
 
-    $("tableCaption").textContent = "ชีต " + CONFIG.SHEET_NAME + " · " + total.toLocaleString("th-TH") + " รายการ";
+const cell = (value, cls = "") =>
+  '<td' + (cls ? ' class="' + cls + '"' : '') + '>' +
+    escapeHTML(text(value) || "—") +
+  '</td>';
 
-    if (!pageRows.length) {
-      $("tableContainer").innerHTML = '<div class="empty"><strong>ไม่พบข้อมูล</strong>ไม่พบตัวชี้วัดที่ตรงกับตัวกรอง กรุณาลองล้างตัวกรองหรือเปลี่ยนคำค้นหา</div>';
-    } else {
-      const body = pageRows.map(r => "<tr>" +
-        '<td><span class="kpi-code">' + escapeHTML(r.kpi || "—") + "</span></td>" +
-        cell(r.description, "desc") + cell(r.group) + cell(r.excellence) + cell(r.section) + cell(r.year) +
-        cell(r.target, "numeric") + cell(r.result, "numeric") + cell(r.percent || r.rate, "numeric") +
-        cell(r.unit) + cell(r.summary, "summary-cell") + "</tr>").join("");
-      $("tableContainer").innerHTML =
-        '<table><thead><tr><th>รหัส KPI</th><th>รายละเอียดตัวชี้วัด</th><th>กลุ่มตัวชี้วัด</th><th>Excellence</th><th>หน่วยงาน</th><th>ปีงบฯ</th><th>เป้าหมาย</th><th>ผลลัพธ์</th><th>ร้อยละ / อัตรา</th><th>หน่วย</th><th>สรุปผล</th></tr></thead><tbody>' +
-        body + "</tbody></table>";
-    }
 
-    const from = total ? start + 1 : 0, to = Math.min(start + CONFIG.PAGE_ROWS, total);
-    $("pageInfo").textContent = "แสดง " + from.toLocaleString("th-TH") + "–" + to.toLocaleString("th-TH") + " จาก " + total.toLocaleString("th-TH") + " รายการ";
-    renderPagination(pages);
+function renderTable() {
+  const rows = state.filteredRows || [];
+  const total = rows.length;
+
+  const pages = Math.max(
+    1,
+    Math.ceil(total / CONFIG.PAGE_ROWS)
+  );
+
+  state.page = Math.min(
+    Math.max(1, state.page),
+    pages
+  );
+
+  const start = (state.page - 1) * CONFIG.PAGE_ROWS;
+
+  const pageRows = rows.slice(
+    start,
+    start + CONFIG.PAGE_ROWS
+  );
+
+  // จำนวนรายการ
+  $("tableCaption").textContent =
+    "ชีต " + CONFIG.SHEET_NAME +
+    " · " + total.toLocaleString("th-TH") +
+    " รายการ";
+
+
+  if (!pageRows.length) {
+
+    $("tableContainer").innerHTML =
+      '<div class="empty">' +
+        '<strong>ไม่พบข้อมูล</strong>' +
+        'ไม่พบตัวชี้วัดที่ตรงกับตัวกรอง กรุณาลองล้างตัวกรองหรือเปลี่ยนคำค้นหา' +
+      '</div>';
+
+  } else {
+
+    // สร้างแถวข้อมูล
+    const body = pageRows.map((r, index) => {
+
+      const absoluteIndex = start + index;
+
+      return "<tr>" +
+
+        // 1. ปุ่มดูรายละเอียด KPI
+        '<td class="action-cell">' +
+          '<button type="button" ' +
+            'class="kpi-view-btn" ' +
+            'title="ดูรายละเอียดตัวชี้วัด" ' +
+            'aria-label="ดูรายละเอียดตัวชี้วัด ' +
+              escapeHTML(r.kpi || "") + '" ' +
+            'data-kpi-index="' + absoluteIndex + '">' +
+
+            '<svg viewBox="0 0 24 24" ' +
+              'fill="none" ' +
+              'stroke="currentColor" ' +
+              'stroke-width="1.8" ' +
+              'stroke-linecap="round" ' +
+              'stroke-linejoin="round" ' +
+              'aria-hidden="true">' +
+
+              '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/>' +
+              '<circle cx="12" cy="12" r="3"/>' +
+
+            '</svg>' +
+          '</button>' +
+        '</td>' +
+
+        // 2. สรุปผล
+        cell(r.summary, "summary-cell") +
+
+        // 3. ปีงบประมาณ
+        cell(r.year) +
+
+        // 4. รหัส KPI
+        '<td>' +
+          '<span class="kpi-code">' +
+            escapeHTML(r.kpi || "—") +
+          '</span>' +
+        '</td>' +
+
+        // 5. รายละเอียดตัวชี้วัด
+        cell(r.description, "desc") +
+
+        // 6. กลุ่มตัวชี้วัด
+        cell(r.group) +
+
+        // 7. Excellence
+        cell(r.excellence) +
+
+        // 8. หน่วยงาน
+        cell(r.section) +
+
+        // 9. เป้าหมาย
+        cell(r.target, "numeric") +
+
+        // 10. ผลลัพธ์
+        cell(r.result, "numeric") +
+
+        // 11. ร้อยละ / อัตรา
+        cell(r.percent || r.rate, "numeric") +
+
+        // 12. หน่วย
+        cell(r.unit) +
+
+      "</tr>";
+
+    }).join("");
+
+
+    // สร้างตาราง HTML
+    $("tableContainer").innerHTML =
+
+      '<table>' +
+
+        '<thead>' +
+          '<tr>' +
+            '<th class="action-cell">ดู</th>' +
+            '<th>สรุปผล</th>' +
+            '<th>ปีงบฯ</th>' +
+            '<th>รหัส KPI</th>' +
+            '<th>รายละเอียดตัวชี้วัด</th>' +
+            '<th>กลุ่มตัวชี้วัด</th>' +
+            '<th>Excellence</th>' +
+            '<th>หน่วยงาน</th>' +
+            '<th>เป้าหมาย</th>' +
+            '<th>ผลลัพธ์</th>' +
+            '<th>ร้อยละ / อัตรา</th>' +
+            '<th>หน่วย</th>' +
+          '</tr>' +
+        '</thead>' +
+
+        '<tbody>' +
+          body +
+        '</tbody>' +
+
+      '</table>';
+
+
+    // เชื่อมปุ่มลูกตากับรายละเอียด KPI
+    $("tableContainer")
+      .querySelectorAll(".kpi-view-btn")
+      .forEach(button => {
+
+        button.addEventListener("click", () => {
+
+          const index = Number(
+            button.dataset.kpiIndex
+          );
+
+          const row = state.filteredRows[index];
+
+          if (!row) {
+            console.warn("ไม่พบข้อมูล KPI");
+            return;
+          }
+
+          if (typeof openKpiDetail === "function") {
+
+            openKpiDetail(row);
+
+          } else {
+
+            console.error(
+              "ไม่พบฟังก์ชัน openKpiDetail(row)"
+            );
+
+          }
+
+        });
+
+      });
+
   }
+
+
+  // Pagination
+  const from = total ? start + 1 : 0;
+
+  const to = Math.min(
+    start + CONFIG.PAGE_ROWS,
+    total
+  );
+
+  $("pageInfo").textContent =
+    "แสดง " +
+    from.toLocaleString("th-TH") +
+    "–" +
+    to.toLocaleString("th-TH") +
+    " จาก " +
+    total.toLocaleString("th-TH") +
+    " รายการ";
+
+  renderPagination(pages);
+}
+
+
+/* ---------- เปิดรายละเอียด KPI ---------- */
+function openKpiDetail(row) {
+  if (!row) {
+    console.warn("ไม่พบข้อมูล KPI");
+    return;
+  }
+
+  const kpiCode = String(row.kpi || "").trim();
+
+  if (!kpiCode) {
+    alert("ไม่พบรหัส KPI สำหรับเปิดรายละเอียด");
+    return;
+  }
+
+  const params = new URLSearchParams({
+    kpi: kpiCode,
+    year: String(row.year || ""),
+    group: String(row.group || ""),
+    excellence: String(row.excellence || ""),
+    section: String(row.section || "")
+  });
+
+  // เปิดหน้า KPI_CASE.html พร้อมส่งข้อมูลผ่าน URL
+  window.location.href = "KPI_CASE.html?" + params.toString();
+}
 
   function renderPagination(totalPages) {
     const container = $("pagination"), buttons = [];
