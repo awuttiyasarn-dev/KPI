@@ -15,12 +15,11 @@ const CONFIG = {
   PAGE_SIZE: 100,
   MAX_PAGES: 100,
   TABLE_PAGE_SIZE: 15,
-
-  BACK_URL: "../index.html",
+  BACK_URL: "./index.html",
   CASE_URL: "./KPI_CASE.html",
-
   EXCLUDED_STATUS: ["ระหว่างดำเนินการ"]
 };
+
 const STATE = {
   allRows: [],
   filteredRows: [],
@@ -677,6 +676,7 @@ function valueLabelPlugin(kind) {
    STACKED BAR CHART
 ============================================================ */
 
+
 function stackedStatusChart(
   canvasId,
   rows,
@@ -691,7 +691,7 @@ function stackedStatusChart(
       fieldValue(row, fieldName) || emptyLabel
     ).trim();
 
-    const status = getStatus(row);
+    const status = getStatus(row) || "ไม่ระบุสถานะ";
 
     statusSet.add(status);
 
@@ -700,12 +700,14 @@ function stackedStatusChart(
     }
 
     const item = map.get(group);
-
     item[status] = (item[status] || 0) + 1;
   });
 
   const sumOf = obj =>
-    Object.values(obj).reduce((x, y) => x + y, 0);
+    Object.values(obj).reduce(
+      (sum, value) => sum + value,
+      0
+    );
 
   const list = [...map.entries()]
     .sort((a, b) => sumOf(b[1]) - sumOf(a[1]));
@@ -726,57 +728,97 @@ function stackedStatusChart(
     "#b07aa1"
   ];
 
-  let xi = 0;
-
   const order = [
     "ผ่าน",
     "ไม่ผ่าน",
     ...[...statusSet].filter(
-      x => x !== "ผ่าน" && x !== "ไม่ผ่าน"
+      status => status !== "ผ่าน" && status !== "ไม่ผ่าน"
     )
-  ].filter(x => statusSet.has(x));
+  ].filter(status => statusSet.has(status));
 
   const canvas = $(canvasId);
-
   if (!canvas) return null;
 
   const parent = canvas.parentElement;
 
-  // ความสูงกราฟปรับตามจำนวนกลุ่ม
-  const chartHeight = Math.max(
-    300,
-    Math.min(850, list.length * 42 + 90)
-  );
+  parent.style.height =
+    Math.max(300, Math.min(850, list.length * 42 + 90)) + "px";
 
-  parent.style.height = chartHeight + "px";
+  // ชื่อกลุ่มบนแกน Y
+  const labels = list.map(([name]) => name);
+
+  // ปลั๊กอินแสดงจำนวนหลังแท่งกราฟ
+  const totalLabelPlugin = {
+    id: "totalLabelPlugin",
+
+    afterDatasetsDraw(chart) {
+      const { ctx, chartArea, scales } = chart;
+      const xScale = scales.x;
+      const yScale = scales.y;
+
+      if (!chartArea || !xScale || !yScale) return;
+
+      ctx.save();
+      ctx.font = '500 11px "Kanit", sans-serif';
+      ctx.fillStyle = "#52625a";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+
+      list.forEach(([name, counts], index) => {
+        const total = sumOf(counts);
+        const y = yScale.getPixelForValue(index);
+        const text = `(${total.toLocaleString("th-TH")} ตัวชี้วัด)`;
+
+        // ตำแหน่งปลายแท่งซ้อนรวมทุกสถานะ
+        const barEnd = xScale.getPixelForValue(total);
+        const textWidth = ctx.measureText(text).width;
+
+        const x = Math.min(
+          barEnd + 8,
+          chart.width - textWidth - 8
+        );
+
+        ctx.fillText(
+          text,
+          Math.max(x, chartArea.left),
+          y
+        );
+      });
+
+      ctx.restore();
+    }
+  };
+
+  // ยกเว้นกราฟเปรียบเทียบกลุ่มตัวชี้วัด
+  const isExcludedChart = canvasId === "kpiTrendChart";
 
   return new Chart(canvas, {
     type: "bar",
 
     data: {
-      labels: list.map(g => g[0]),
+      labels,
 
-      datasets: order.map(status => ({
+      datasets: order.map((status, index) => ({
         label: status,
 
         data: list.map(
-          g => g[1][status] || 0
+          group => group[1][status] || 0
         ),
 
         backgroundColor:
           colorsMap[status] ||
-          extra[xi++ % extra.length],
+          extra[index % extra.length],
 
         borderRadius: 5,
         borderSkipped: false,
-
-        barPercentage: .75,
-        categoryPercentage: .8
+        barPercentage: 0.75,
+        categoryPercentage: 0.8
       }))
     },
 
     plugins: [
-      valueLabelPlugin("bar")
+      valueLabelPlugin("bar"),
+      ...(!isExcludedChart ? [totalLabelPlugin] : [])
     ],
 
     options: {
@@ -784,7 +826,7 @@ function stackedStatusChart(
 
       layout: {
         padding: {
-          right: 130,
+          right: isExcludedChart ? 20 : 160,
           left: 5,
           top: 5,
           bottom: 5
@@ -814,6 +856,7 @@ function stackedStatusChart(
 
           ticks: {
             precision: 0,
+
             font: {
               family: "Kanit",
               size: 10
@@ -830,6 +873,7 @@ function stackedStatusChart(
 
           ticks: {
             autoSkip: false,
+
             font: {
               family: "Kanit",
               size: 11
@@ -856,17 +900,22 @@ function stackedStatusChart(
 
         tooltip: {
           callbacks: {
-            label(c) {
-              const total =
-                c.chart.data.datasets.reduce(
-                  (a, d) =>
-                    a + Number(d.data[c.dataIndex] || 0),
-                  0
-                );
+            label(context) {
+              const total = context.chart.data.datasets.reduce(
+                (sum, dataset) =>
+                  sum + Number(
+                    dataset.data[context.dataIndex] || 0
+                  ),
+                0
+              );
 
-              const n = Number(c.raw || 0);
+              const value = Number(context.raw || 0);
 
-              return `${c.dataset.label}: ${n.toLocaleString("th-TH")} รายการ (${total ? (n / total * 100).toFixed(1) : "0.0"}%)`;
+              const percent = total
+                ? (value / total * 100).toFixed(1)
+                : "0.0";
+
+              return `${context.dataset.label}: ${value.toLocaleString("th-TH")} รายการ (${percent}%)`;
             }
           }
         }
@@ -874,6 +923,7 @@ function stackedStatusChart(
     }
   });
 }
+
 
 /* ============================================================
    DOUGHNUT CHART
@@ -985,9 +1035,10 @@ function renderStatusChart(rows) {
   });
 }
 
+
 /* ============================================================
-   RENDER ALL CHARTS
-============================================================ */
+ * RENDER ALL CHARTS
+ * ============================================================ */
 
 function renderCharts(rows) {
   [
@@ -1005,33 +1056,71 @@ function renderCharts(rows) {
   Chart.defaults.font.family = '"Kanit", sans-serif';
   Chart.defaults.color = "#718179";
 
-  STATE.trendChart = stackedStatusChart(
-    "kpiTrendChart",
+  // เพิ่มจำนวนตัวชี้วัดในวงเล็บท้ายชื่อแต่ละแท่ง
+  const countIndicators = (data, field, fallback) => {
+    const counts = new Map();
+
+    data.forEach(row => {
+      const name = String(
+        fieldValue(row, field) || fallback
+      ).trim();
+
+      counts.set(name, (counts.get(name) || 0) + 1);
+    });
+
+    return counts;
+  };
+
+  // เก็บจำนวนตัวชี้วัดแยกตามกลุ่ม
+  const groupCounts = countIndicators(
     rows,
     "group",
     "ไม่ระบุกลุ่ม"
   );
 
-  STATE.excellenceChart = stackedStatusChart(
-    "kpiExcellenceChart",
+  const excellenceCounts = countIndicators(
     rows,
     "excellence",
     "ไม่ระบุ Excellence"
   );
 
-  STATE.sectionChart = stackedStatusChart(
-    "kpiSectionChart",
+  const sectionCounts = countIndicators(
     rows,
     "section",
     "ไม่ระบุหน่วยงาน"
   );
 
+  // กราฟแนวโน้มแยกตามกลุ่ม
+  STATE.trendChart = stackedStatusChart(
+    "kpiTrendChart",
+    rows,
+    "group",
+    "ไม่ระบุกลุ่ม",
+    groupCounts
+  );
+
+  // กราฟแยกตาม Excellence
+  STATE.excellenceChart = stackedStatusChart(
+    "kpiExcellenceChart",
+    rows,
+    "excellence",
+    "ไม่ระบุ Excellence",
+    excellenceCounts
+  );
+
+  // กราฟแยกตามหน่วยงาน
+  STATE.sectionChart = stackedStatusChart(
+    "kpiSectionChart",
+    rows,
+    "section",
+    "ไม่ระบุหน่วยงาน",
+    sectionCounts
+  );
+
+  // กราฟสรุปสถานะ
   STATE.statusChart = renderStatusChart(rows);
 }
 
-/* ============================================================
-   TABLE
-============================================================ */
 
 function renderTable() {
   const rows = STATE.tableRows;
@@ -1048,11 +1137,7 @@ function renderTable() {
   );
 
   const start = (STATE.page - 1) * size;
-
-  const pageRows = rows.slice(
-    start,
-    start + size
-  );
+  const pageRows = rows.slice(start, start + size);
 
   if (!pageRows.length) {
     $("kpiTableBody").innerHTML = `
@@ -1063,12 +1148,14 @@ function renderTable() {
       </tr>
     `;
   } else {
-    $("kpiTableBody").innerHTML =
-      pageRows.map((row, i) => {
+    $("kpiTableBody").innerHTML = pageRows
+      .map((row, i) => {
         const status = getStatus(row);
+        const statusText = String(status || "").trim();
 
         return `
           <tr>
+            <!-- 1. ปุ่มดูรายละเอียด -->
             <td class="eye-cell">
               <button
                 type="button"
@@ -1094,47 +1181,79 @@ function renderTable() {
               </button>
             </td>
 
-            <td>${escapeHTML(fieldValue(row, "year") || "—")}</td>
-
-            <td>${escapeHTML(fieldValue(row, "kpi") || "—")}</td>
-
-            <td>${escapeHTML(
-              fieldValue(row, "description") ||
-              fieldValue(row, "kpi") ||
-              "—"
-            )}</td>
-
-            <td>${escapeHTML(fieldValue(row, "group") || "ไม่ระบุกลุ่ม")}</td>
-
-            <td>${escapeHTML(fieldValue(row, "section") || "—")}</td>
-
-            <td>${escapeHTML(fieldValue(row, "target") || "—")}</td>
-
-            <td>${escapeHTML(fieldValue(row, "result") || "—")}</td>
-
-            <td>${escapeHTML(fieldValue(row, "criterion") || "—")}</td>
-
-            <td>${escapeHTML(fieldValue(row, "rate") || "—")}</td>
-
-            <td>${escapeHTML(fieldValue(row, "unit") || "—")}</td>
-
+            <!-- 2. สรุปผล พร้อมสีตามสถานะ -->
             <td>
-              <span class="status-pill ${statusClass(status)}">
-                ${escapeHTML(status)}
+              <span class="status-pill ${statusClass(statusText)}">
+                ${escapeHTML(statusText || "ไม่ระบุสถานะ")}
               </span>
+            </td>
+
+            <!-- 3. ปีงบประมาณ -->
+            <td>
+              ${escapeHTML(fieldValue(row, "year") || "—")}
+            </td>
+
+            <!-- 4. รหัส KPI -->
+            <td>
+              ${escapeHTML(fieldValue(row, "kpi") || "—")}
+            </td>
+
+            <!-- 5. ตัวชี้วัด -->
+            <td>
+              ${escapeHTML(
+                fieldValue(row, "description") ||
+                fieldValue(row, "kpi") ||
+                "—"
+              )}
+            </td>
+
+            <!-- 6. กลุ่ม -->
+            <td>
+              ${escapeHTML(
+                fieldValue(row, "group") || "ไม่ระบุกลุ่ม"
+              )}
+            </td>
+
+            <!-- 7. หน่วยงาน -->
+            <td>
+              ${escapeHTML(fieldValue(row, "section") || "—")}
+            </td>
+
+            <!-- 8. เป้าหมาย -->
+            <td>
+              ${escapeHTML(fieldValue(row, "target") || "—")}
+            </td>
+
+            <!-- 9. ผลลัพธ์ -->
+            <td>
+              ${escapeHTML(fieldValue(row, "result") || "—")}
+            </td>
+
+            <!-- 10. เกณฑ์ -->
+            <td>
+              ${escapeHTML(fieldValue(row, "criterion") || "—")}
+            </td>
+
+            <!-- 11. Rate -->
+            <td>
+              ${escapeHTML(fieldValue(row, "rate") || "—")}
+            </td>
+
+            <!-- 12. หน่วย -->
+            <td>
+              ${escapeHTML(fieldValue(row, "unit") || "—")}
             </td>
           </tr>
         `;
-      }).join("");
+      })
+      .join("");
   }
 
   $("tableCount").textContent =
     `${rows.length.toLocaleString("th-TH")} รายการ · หน้า ${STATE.page}/${totalPages}`;
 
   $("pageNumber").textContent = STATE.page;
-
   $("prevPage").disabled = STATE.page <= 1;
-
   $("nextPage").disabled = STATE.page >= totalPages;
 }
 
@@ -1520,44 +1639,28 @@ $("kpiTableBody").addEventListener("click", event => {
 
   if (!row) return;
 
-  // สร้าง URL จากตำแหน่งไฟล์ Dashboard
-  const url = new URL(
-    CONFIG.CASE_URL,
-    window.location.href
-  );
+  const params = new URLSearchParams({
+    kpi: String(fieldValue(row, "kpi") || ""),
+    year: String(fieldValue(row, "year") || ""),
+    group: String(fieldValue(row, "group") || ""),
+    excellence: String(fieldValue(row, "excellence") || ""),
+    section: String(fieldValue(row, "section") || ""),
+    description: String(fieldValue(row, "description") || "")
+  });
 
-  // ส่งข้อมูล KPI ไปยังหน้ารายละเอียด
-  url.searchParams.set(
-    "kpi",
-    fieldValue(row, "kpi") || ""
-  );
+  window.location.href =
+    `${CONFIG.CASE_URL}?${params.toString()}`;
+});
 
-  url.searchParams.set(
-    "year",
-    fieldValue(row, "year") || ""
-  );
+// Detail dialog
+$("detailClose").addEventListener("click", () => {
+  $("detailDialog").close();
+});
 
-  url.searchParams.set(
-    "group",
-    fieldValue(row, "group") || ""
-  );
-
-  url.searchParams.set(
-    "excellence",
-    fieldValue(row, "excellence") || ""
-  );
-
-  url.searchParams.set(
-    "section",
-    fieldValue(row, "section") || ""
-  );
-
-  url.searchParams.set(
-    "description",
-    fieldValue(row, "description") || ""
-  );
-
-  window.location.href = url.href;
+$("detailDialog").addEventListener("click", event => {
+  if (event.target === $("detailDialog")) {
+    $("detailDialog").close();
+  }
 });
 
 // Main filters
