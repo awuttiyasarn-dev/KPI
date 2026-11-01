@@ -91,10 +91,108 @@
       </div>
     </div>
     <div class="table-wrap">
-      <table>
-        <thead><tr><th class="eye-col" aria-label="ดูรายละเอียด">ดู</th><th><div class="th-inner"><span>ปีงบประมาณ</span><button type="button" class="th-filter" data-col="year" aria-label="ตัวกรองคอลัมน์ ปีงบประมาณ" aria-haspopup="true">▾</button></div></th><th><div class="th-inner"><span>รหัส KPI</span><button type="button" class="th-filter" data-col="kpi" aria-label="ตัวกรองคอลัมน์ รหัส KPI" aria-haspopup="true">▾</button></div></th><th><div class="th-inner"><span>ตัวชี้วัด</span><button type="button" class="th-filter" data-col="description" aria-label="ตัวกรองคอลัมน์ ตัวชี้วัด" aria-haspopup="true">▾</button></div></th><th><div class="th-inner"><span>กลุ่ม</span><button type="button" class="th-filter" data-col="group" aria-label="ตัวกรองคอลัมน์ กลุ่ม" aria-haspopup="true">▾</button></div></th><th><div class="th-inner"><span>หน่วยงาน</span><button type="button" class="th-filter" data-col="section" aria-label="ตัวกรองคอลัมน์ หน่วยงาน" aria-haspopup="true">▾</button></div></th><th><div class="th-inner"><span>เป้าหมาย</span><button type="button" class="th-filter" data-col="target" aria-label="ตัวกรองคอลัมน์ เป้าหมาย" aria-haspopup="true">▾</button></div></th><th><div class="th-inner"><span>ผลลัพธ์</span><button type="button" class="th-filter" data-col="result" aria-label="ตัวกรองคอลัมน์ ผลลัพธ์" aria-haspopup="true">▾</button></div></th><th><div class="th-inner"><span>เกณฑ์ (Criterion)</span><button type="button" class="th-filter" data-col="criterion" aria-label="ตัวกรองคอลัมน์ เกณฑ์ (Criterion)" aria-haspopup="true">▾</button></div></th><th><div class="th-inner"><span>Rate</span><button type="button" class="th-filter" data-col="rate" aria-label="ตัวกรองคอลัมน์ Rate" aria-haspopup="true">▾</button></div></th><th><div class="th-inner"><span>หน่วย (Nunit)</span><button type="button" class="th-filter" data-col="unit" aria-label="ตัวกรองคอลัมน์ หน่วย (Nunit)" aria-haspopup="true">▾</button></div></th><th><div class="th-inner"><span>สรุปผล</span><button type="button" class="th-filter" data-col="summary" aria-label="ตัวกรองคอลัมน์ สรุปผล" aria-haspopup="true">▾</button></div></th></tr></thead>
-        <tbody id="kpiTableBody"><tr><td colspan="12" class="empty-state">กำลังโหลดข้อมูล...</td></tr></tbody>
-      </table>
+   
+<table>
+  <thead>
+    <tr>
+      <th class="eye-col" aria-label="ดูรายละเอียด">ดู</th>
+
+      <th>
+        <div class="th-inner">
+          <span>สรุปผล</span>
+          <button type="button" class="th-filter" data-col="summary"
+            aria-label="ตัวกรองคอลัมน์ สรุปผล" aria-haspopup="true">▾</button>
+        </div>
+      </th>
+
+      <th>
+        <div class="th-inner">
+          <span>ปีงบประมาณ</span>
+          <button type="button" class="th-filter" data-col="year"
+            aria-label="ตัวกรองคอลัมน์ ปีงบประมาณ" aria-haspopup="true">▾</button>
+        </div>
+      </th>
+
+      <th>
+        <div class="th-inner">
+          <span>รหัส KPI</span>
+          <button type="button" class="th-filter" data-col="kpi"
+            aria-label="ตัวกรองคอลัมน์ รหัส KPI" aria-haspopup="true">▾</button>
+        </div>
+      </th>
+
+      <th>
+        <div class="th-inner">
+          <span>ตัวชี้วัด</span>
+          <button type="button" class="th-filter" data-col="description"
+            aria-label="ตัวกรองคอลัมน์ ตัวชี้วัด" aria-haspopup="true">▾</button>
+        </div>
+      </th>
+
+      <th>
+        <div class="th-inner">
+          <span>กลุ่ม</span>
+          <button type="button" class="th-filter" data-col="group"
+            aria-label="ตัวกรองคอลัมน์ กลุ่ม" aria-haspopup="true">▾</button>
+        </div>
+      </th>
+
+      <th>
+        <div class="th-inner">
+          <span>หน่วยงาน</span>
+          <button type="button" class="th-filter" data-col="section"
+            aria-label="ตัวกรองคอลัมน์ หน่วยงาน" aria-haspopup="true">▾</button>
+        </div>
+      </th>
+
+      <th>
+        <div class="th-inner">
+          <span>เป้าหมาย</span>
+          <button type="button" class="th-filter" data-col="target"
+            aria-label="ตัวกรองคอลัมน์ เป้าหมาย" aria-haspopup="true">▾</button>
+        </div>
+      </th>
+
+      <th>
+        <div class="th-inner">
+          <span>ผลลัพธ์</span>
+          <button type="button" class="th-filter" data-col="result"
+            aria-label="ตัวกรองคอลัมน์ ผลลัพธ์" aria-haspopup="true">▾</button>
+        </div>
+      </th>
+
+      <th>
+        <div class="th-inner">
+          <span>เกณฑ์ (Criterion)</span>
+          <button type="button" class="th-filter" data-col="criterion"
+            aria-label="ตัวกรองคอลัมน์ เกณฑ์ (Criterion)" aria-haspopup="true">▾</button>
+        </div>
+      </th>
+
+      <th>
+        <div class="th-inner">
+          <span>Rate</span>
+          <button type="button" class="th-filter" data-col="rate"
+            aria-label="ตัวกรองคอลัมน์ Rate" aria-haspopup="true">▾</button>
+        </div>
+      </th>
+
+      <th>
+        <div class="th-inner">
+          <span>หน่วย (Nunit)</span>
+          <button type="button" class="th-filter" data-col="unit"
+            aria-label="ตัวกรองคอลัมน์ หน่วย (Nunit)" aria-haspopup="true">▾</button>
+        </div>
+      </th>
+    </tr>
+  </thead>
+
+  <tbody id="kpiTableBody">
+    <tr>
+      <td colspan="12" class="empty-state">กำลังโหลดข้อมูล...</td>
+    </tr>
+  </tbody>
+</table>
     </div>
     <div class="table-footer">
       <span id="tableCount">0 รายการ</span>
