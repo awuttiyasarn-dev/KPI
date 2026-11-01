@@ -2,7 +2,7 @@
  * REPORT KPI DASHBOARD
  * File       : app_dashboard.js
  * Frontend   : GitHub Pages
- * HTML       : dashboard.HTML
+ * HTML       : dashboard.html
  * API        : Google Apps Script Web App
  * Sheet      : REPORT_02
  * ============================================================ */
@@ -36,6 +36,15 @@
 
     CHART_JS_URL:
       "https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js",
+    XLSX_URL:
+      "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
+
+    // ชื่อไฟล์หน้าปลายทาง — ต้องตรงกับไฟล์ใน repo (ตัวพิมพ์เล็ก/ใหญ่มีผล)
+    // หน้าเหล่านี้ต้องอยู่โฟลเดอร์เดียวกับหน้า dashboard
+    PAGES: {
+      KPI: "KPI.html",
+      EXCELLENCE: "Excellence.html"
+    },
 
     COLORS: {
       primary: "#1a8f63",
@@ -83,8 +92,7 @@
     initialized: false,
     loading: false,
     loadingHTML: false,
-    loadingChart: false,
-    chartPromise: null,
+    scripts: {},           // promise ของสคริปต์ภายนอกที่กำลังโหลด
 
     rawRows: [],
     filteredRows: [],
@@ -92,39 +100,26 @@
     page: 1,
     pageSize: 25,
 
-    charts: {
-      group: null
-    },
+    charts: { group: null },
 
     lastUpdated: null,
     loadError: null
   };
 
   /* ==========================================================
-     4. DOM HELPERS
+     4. DOM / VALUE HELPERS
   ========================================================== */
 
   const $ = (id) => document.getElementById(id);
+  const root = () => $("reportKpiDashboard");
 
-  function root() {
-    return $("reportKpiDashboard");
-  }
+  const normalizeText = (value) => String(value ?? "").trim();
 
-  function normalizeText(value) {
-    return String(value ?? "").trim();
-  }
+  const normalizeKey = (value) =>
+    normalizeText(value).toLowerCase().replace(/[\s_\-./()]+/g, "");
 
-  function normalizeKey(value) {
-    return normalizeText(value)
-      .toLowerCase()
-      .replace(/[\s_\-./()]+/g, "");
-  }
-
-  function isBlank(value) {
-    return value === null ||
-      value === undefined ||
-      String(value).trim() === "";
-  }
+  const isBlank = (value) =>
+    value === null || value === undefined || String(value).trim() === "";
 
   function escapeHTML(value) {
     return String(value ?? "")
@@ -145,17 +140,13 @@
         : String(value);
   }
 
-  function unique(values) {
-    return [...new Set(
-      values.map(normalizeText).filter(Boolean)
-    )];
-  }
+  const unique = (values) =>
+    [...new Set(values.map(normalizeText).filter(Boolean))];
 
   function numberValue(value) {
     if (typeof value === "number") {
       return Number.isFinite(value) ? value : null;
     }
-
     if (isBlank(value)) return null;
 
     const text = String(value)
@@ -164,9 +155,7 @@
       .replace(/%/g, "")
       .replace(/\s/g, "");
 
-    if (!/^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(text)) {
-      return null;
-    }
+    if (!/^[-+]?(?:\d+\.?\d*|\.\d+)$/.test(text)) return null;
 
     const number = Number(text);
     return Number.isFinite(number) ? number : null;
@@ -198,7 +187,7 @@
   }
 
   /* ==========================================================
-     5. LOADING STATUS
+     5. LOADING STATUS / ALERT
   ========================================================== */
 
   function setLoadingStatus(state, message = "", count = "") {
@@ -209,31 +198,14 @@
     const countEl = $("rdLoadingCount");
 
     if (!panel || !title || !detail || !countEl) {
-      console.warn(
-        "[REPORT] Loading status elements are missing."
-      );
+      console.warn("[REPORT] Loading status elements are missing.");
       return;
     }
 
     const styles = {
-      loading: {
-        title: "กำลังโหลดข้อมูล",
-        color: "#f59e0b",
-        background: "#fffbeb",
-        border: "#fde68a"
-      },
-      success: {
-        title: "โหลดข้อมูลสำเร็จ",
-        color: "#16a34a",
-        background: "#f0fdf4",
-        border: "#bbf7d0"
-      },
-      error: {
-        title: "โหลดข้อมูลไม่สำเร็จ",
-        color: "#dc2626",
-        background: "#fef2f2",
-        border: "#fecaca"
-      }
+      loading: { title: "กำลังโหลดข้อมูล", color: "#f59e0b", background: "#fffbeb", border: "#fde68a" },
+      success: { title: "โหลดข้อมูลสำเร็จ", color: "#16a34a", background: "#f0fdf4", border: "#bbf7d0" },
+      error:   { title: "โหลดข้อมูลไม่สำเร็จ", color: "#dc2626", background: "#fef2f2", border: "#fecaca" }
     };
 
     const style = styles[state] || styles.loading;
@@ -253,12 +225,9 @@
     panel.style.borderColor = style.border;
     panel.style.color = "#334155";
 
-    if (dot) {
-      dot.style.background = style.color;
-    }
+    if (dot) dot.style.background = style.color;
   }
 
-  // ใช้ฟังก์ชันนี้หลังโหลดเสร็จ เพื่อให้ข้อความถูกอัปเดตตรง ๆ
   function setFinalLoadingStatus(total, message = "") {
     setLoadingStatus(
       "success",
@@ -267,26 +236,15 @@
     );
   }
 
-  /* ==========================================================
-     6. ALERT / TABLE STATUS
-  ========================================================== */
-
   function setStatus(message, type = "normal") {
     const element = $("rdTableStatus");
     if (!element) return;
 
     element.textContent = message || "";
+    element.classList.remove("rd-status-success", "rd-status-error");
 
-    element.classList.remove(
-      "rd-status-success",
-      "rd-status-error"
-    );
-
-    if (type === "success") {
-      element.classList.add("rd-status-success");
-    } else if (type === "error") {
-      element.classList.add("rd-status-error");
-    }
+    if (type === "success") element.classList.add("rd-status-success");
+    else if (type === "error") element.classList.add("rd-status-error");
   }
 
   function showAlert(message, type = "warning") {
@@ -296,45 +254,26 @@
     element.textContent = message || "";
     element.hidden = !message;
 
-    element.style.borderColor =
-      type === "error" ? "#fecaca" : "#f4d6a0";
-
-    element.style.color =
-      type === "error" ? "#991b1b" : "#92400e";
-
-    element.style.background =
-      type === "error" ? "#fef2f2" : "#fffbeb";
+    element.style.borderColor = type === "error" ? "#fecaca" : "#f4d6a0";
+    element.style.color = type === "error" ? "#991b1b" : "#92400e";
+    element.style.background = type === "error" ? "#fef2f2" : "#fffbeb";
   }
 
-  function clearAlert() {
-    showAlert("");
-  }
+  const clearAlert = () => showAlert("");
 
   /* ==========================================================
-     7. API REQUEST
+     6. API REQUEST
   ========================================================== */
 
   async function apiRequest(action, params = {}) {
     const controller = new AbortController();
-
-    const timeoutId = setTimeout(
-      () => controller.abort(),
-      CONFIG.API_TIMEOUT
-    );
+    const timeoutId = setTimeout(() => controller.abort(), CONFIG.API_TIMEOUT);
 
     try {
-      console.info("[REPORT API] Request:", action, params);
-
       const response = await fetch(CONFIG.API_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "text/plain;charset=utf-8"
-        },
-        body: JSON.stringify({
-          action,
-          key: CONFIG.ACCESS_KEY,
-          params
-        }),
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action, key: CONFIG.ACCESS_KEY, params }),
         redirect: "follow",
         cache: "no-store",
         signal: controller.signal
@@ -342,24 +281,15 @@
 
       const responseText = await response.text();
 
-      console.info("[REPORT API] HTTP:", response.status);
-      console.info(
-        "[REPORT API] Response preview:",
-        responseText.slice(0, 500)
-      );
-
       if (!response.ok) {
         throw new Error(`API ตอบกลับ HTTP ${response.status}`);
       }
 
       let data;
-
       try {
         data = JSON.parse(responseText);
       } catch (_) {
-        throw new Error(
-          "API ส่งข้อมูลกลับมาไม่ใช่ JSON กรุณาตรวจสอบ Code.gs"
-        );
+        throw new Error("API ส่งข้อมูลกลับมาไม่ใช่ JSON กรุณาตรวจสอบ Code.gs");
       }
 
       if (!data || typeof data !== "object") {
@@ -368,11 +298,7 @@
 
       if (data.ok === false || data.success === false || data.error) {
         throw new Error(
-          String(
-            data.message ||
-            data.error ||
-            "Google Apps Script ปฏิเสธคำขอ"
-          )
+          String(data.message || data.error || "Google Apps Script ปฏิเสธคำขอ")
         );
       }
 
@@ -382,17 +308,13 @@
       console.error("[REPORT API] Error:", error);
 
       if (error.name === "AbortError") {
-        throw new Error(
-          `API ไม่ตอบกลับภายใน ${CONFIG.API_TIMEOUT / 1000} วินาที`
-        );
+        throw new Error(`API ไม่ตอบกลับภายใน ${CONFIG.API_TIMEOUT / 1000} วินาที`);
       }
-
       if (error instanceof TypeError) {
         throw new Error(
           "เรียก Google Apps Script ไม่สำเร็จ กรุณาตรวจสอบ URL และสิทธิ์ Web App"
         );
       }
-
       throw error;
 
     } finally {
@@ -401,7 +323,7 @@
   }
 
   /* ==========================================================
-     8. RESPONSE NORMALIZATION
+     7. RESPONSE NORMALIZATION
   ========================================================== */
 
   function getHeaders(data) {
@@ -411,87 +333,49 @@
   }
 
   function rowToObject(row, headers) {
-    if (row && typeof row === "object" && !Array.isArray(row)) {
-      return row;
-    }
+    if (row && typeof row === "object" && !Array.isArray(row)) return row;
 
     const result = {};
-
     headers.forEach((header, index) => {
       result[header] = Array.isArray(row) ? row[index] : undefined;
     });
-
     return result;
   }
 
   function findFieldValue(row, aliases) {
-    const keys = Object.keys(row || {});
-
     for (const alias of aliases) {
-      if (
-        Object.prototype.hasOwnProperty.call(row, alias) &&
-        !isBlank(row[alias])
-      ) {
+      if (Object.prototype.hasOwnProperty.call(row, alias) && !isBlank(row[alias])) {
         return row[alias];
       }
     }
 
     const normalizedMap = new Map(
-      keys.map((key) => [normalizeKey(key), key])
+      Object.keys(row || {}).map((key) => [normalizeKey(key), key])
     );
 
     for (const alias of aliases) {
       const key = normalizedMap.get(normalizeKey(alias));
-
-      if (key !== undefined && !isBlank(row[key])) {
-        return row[key];
-      }
+      if (key !== undefined && !isBlank(row[key])) return row[key];
     }
 
     return "";
   }
 
-  function getField(row, name) {
-    return findFieldValue(row, FIELDS[name] || [name]);
-  }
+  const getField = (row, name) => findFieldValue(row, FIELDS[name] || [name]);
 
   function normalizeRow(row, headers, index) {
     const source = rowToObject(row, headers);
+    const out = { _id: `rd-row-${index}`, _source: source };
 
-    return {
-      _id: `rd-row-${index}`,
-      _source: source,
+    Object.keys(FIELDS).forEach((name) => {
+      out[name] = getField(source, name);
+    });
 
-      year: getField(source, "year"),
-      group: getField(source, "group"),
-      excellence: getField(source, "excellence"),
-      section: getField(source, "section"),
-
-      kpi: getField(source, "kpi"),
-      description: getField(source, "description"),
-
-      numerator: getField(source, "numerator"),
-      denominator: getField(source, "denominator"),
-      rate: getField(source, "rate"),
-
-      evaluate: getField(source, "evaluate"),
-      indicate: getField(source, "indicate"),
-      standard: getField(source, "standard"),
-
-      formula: getField(source, "formula"),
-      criterion: getField(source, "criterion"),
-
-      result: getField(source, "result"),
-      target: getField(source, "target"),
-      unit: getField(source, "unit"),
-      percent: getField(source, "percent"),
-
-      summary: getField(source, "summary")
-    };
+    return out;
   }
 
   /* ==========================================================
-     9. FETCH ALL ROWS
+     8. FETCH ALL ROWS
   ========================================================== */
 
   async function fetchAllRows() {
@@ -501,7 +385,7 @@
     let expectedTotal = null;
     let expectedPages = null;
 
-    while (page <= CONFIG.MAX_PAGES) {
+    for (; page <= CONFIG.MAX_PAGES; page++) {
       setLoadingStatus(
         "loading",
         `กำลังอ่านข้อมูลจากชีต ${CONFIG.SHEET_NAME}`,
@@ -531,9 +415,7 @@
 
       if (expectedPages === null) {
         const pages = Number(response.totalPages ?? response.pages ?? 0);
-        if (Number.isFinite(pages) && pages > 0) {
-          expectedPages = pages;
-        }
+        if (Number.isFinite(pages) && pages > 0) expectedPages = pages;
       }
 
       if (!rows.length) break;
@@ -546,90 +428,101 @@
         `${allRows.length.toLocaleString("th-TH")} รายการ`
       );
 
-      if (expectedTotal !== null && allRows.length >= expectedTotal) {
-        break;
-      }
-
-      if (expectedPages !== null && page >= expectedPages) {
-        break;
-      }
-
+      if (expectedTotal !== null && allRows.length >= expectedTotal) break;
+      if (expectedPages !== null && page >= expectedPages) break;
       if (rows.length < CONFIG.PAGE_SIZE) break;
-
-      page += 1;
     }
 
     if (page > CONFIG.MAX_PAGES) {
       console.warn("[REPORT] ถึง MAX_PAGES แล้ว อาจโหลดไม่ครบ");
     }
 
-    return {
-      headers,
-      rows: allRows,
-      expectedTotal
-    };
+    return { headers, rows: allRows, expectedTotal };
   }
 
   /* ==========================================================
-     10. CHART.JS LOADER
+     9. EXTERNAL SCRIPT LOADER (Chart.js / SheetJS)
   ========================================================== */
 
-  function ensureChartJS() {
-    if (window.Chart) return Promise.resolve(true);
-    if (STATE.chartPromise) return STATE.chartPromise;
+  function loadScript(key, url, isReady, timeout = CONFIG.CHART_TIMEOUT) {
+    if (isReady()) return Promise.resolve(true);
+    if (STATE.scripts[key]) return STATE.scripts[key];
 
-    STATE.loadingChart = true;
+    STATE.scripts[key] = new Promise((resolve) => {
+      const script = document.createElement("script");
+      let done = false;
 
-    STATE.chartPromise = new Promise((resolve) => {
-      let finished = false;
-      let script = document.querySelector(
-        'script[data-report-chartjs="true"]'
-      );
-
-      let timeoutId;
-
-      const finish = (success) => {
-        if (finished) return;
-        finished = true;
-
-        clearTimeout(timeoutId);
-        STATE.loadingChart = false;
-        STATE.chartPromise = null;
-
-        resolve(Boolean(success && window.Chart));
+      const finish = (ok) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        STATE.scripts[key] = null;
+        if (!ok) script.remove();
+        resolve(Boolean(ok && isReady()));
       };
 
-      timeoutId = setTimeout(
-        () => finish(false),
-        CONFIG.CHART_TIMEOUT
-      );
+      const timer = setTimeout(() => finish(false), timeout);
 
-      if (script && window.Chart) {
-        finish(true);
-        return;
-      }
-
-      if (!script) {
-        script = document.createElement("script");
-        script.src = CONFIG.CHART_JS_URL;
-        script.async = true;
-        script.dataset.reportChartjs = "true";
-      } else {
-        // สคริปต์เดิมอาจโหลดเสร็จหรือผิดพลาดไปแล้ว
-        script.remove();
-        script = document.createElement("script");
-        script.src = CONFIG.CHART_JS_URL;
-        script.async = true;
-        script.dataset.reportChartjs = "true";
-      }
-
+      script.src = url;
+      script.async = true;
       script.addEventListener("load", () => finish(true), { once: true });
       script.addEventListener("error", () => finish(false), { once: true });
-
       document.head.appendChild(script);
     });
 
-    return STATE.chartPromise;
+    return STATE.scripts[key];
+  }
+
+  const ensureChartJS = () =>
+    loadScript("chart", CONFIG.CHART_JS_URL, () => Boolean(window.Chart));
+
+  const ensureSheetJS = () =>
+    loadScript("xlsx", CONFIG.XLSX_URL, () => Boolean(window.XLSX), 15000);
+
+  /* ==========================================================
+     10. NAVIGATION (กัน 404)
+  ========================================================== */
+
+  // ตรวจว่าไฟล์ปลายทางมีอยู่จริงก่อนเปลี่ยนหน้า ถ้าไม่มีจะแจ้งเตือนแทนการขึ้นหน้า 404
+  async function navigateTo(url) {
+    try {
+      const response = await fetch(url.href, { method: "HEAD", cache: "no-store" });
+
+      if (response.status === 404) {
+        const file = url.pathname.split("/").pop();
+        console.error("[REPORT] ไม่พบไฟล์ปลายทาง:", url.href);
+        showAlert(
+          `ไม่พบไฟล์ ${file} ที่ ${url.pathname} กรุณาตรวจสอบชื่อไฟล์ใน repo ` +
+          "และค่า CONFIG.PAGES ใน app_dashboard.js",
+          "error"
+        );
+        return;
+      }
+    } catch (_) {
+      // ตรวจไม่ได้ (เช่น เครือข่ายขัดข้อง) ให้ลองเปิดหน้าตามปกติ
+    }
+
+    window.location.href = url.href;
+  }
+
+  // เปิดหน้า Excellence ตามกลุ่มที่คลิก (ส่งปีงบประมาณที่เลือกอยู่ไปด้วย)
+  function openExcellencePage(selectedGroup) {
+    const url = new URL(CONFIG.PAGES.EXCELLENCE, document.baseURI);
+    url.searchParams.set("group", selectedGroup);
+
+    const year = normalizeText($("rdFilterYear")?.value);
+    if (year) url.searchParams.set("year", year);
+
+    navigateTo(url);
+  }
+
+  function openKpiPage() {
+    const url = new URL(CONFIG.PAGES.KPI, document.baseURI);
+
+    const year = normalizeText($("rdFilterYear")?.value);
+    if (year) url.searchParams.set("year", year);
+
+    navigateTo(url);
   }
 
   /* ==========================================================
@@ -655,41 +548,18 @@
       select.appendChild(option);
     });
 
-    if (values.includes(previousValue)) {
-      select.value = previousValue;
-    }
+    if (values.includes(previousValue)) select.value = previousValue;
   }
 
   function populateFilters() {
-    const sortThai = (a, b) =>
-      a.localeCompare(b, "th", { numeric: true });
-
+    const sortThai = (a, b) => a.localeCompare(b, "th", { numeric: true });
     const sortYear = (a, b) =>
       String(b).localeCompare(String(a), "th", { numeric: true });
 
-    populateSelect(
-      "rdFilterYear",
-      unique(STATE.rawRows.map((row) => row.year)).sort(sortYear),
-      "ทุกปีงบประมาณ"
-    );
-
-    populateSelect(
-      "rdFilterGroup",
-      unique(STATE.rawRows.map((row) => row.group)).sort(sortThai),
-      "ทุกกลุ่ม KPI"
-    );
-
-    populateSelect(
-      "rdFilterExcellence",
-      unique(STATE.rawRows.map((row) => row.excellence)).sort(sortThai),
-      "ทุก Excellence"
-    );
-
-    populateSelect(
-      "rdFilterSection",
-      unique(STATE.rawRows.map((row) => row.section)).sort(sortThai),
-      "ทุกหน่วยงาน"
-    );
+    populateSelect("rdFilterYear", unique(STATE.rawRows.map((r) => r.year)).sort(sortYear), "ทุกปีงบประมาณ");
+    populateSelect("rdFilterGroup", unique(STATE.rawRows.map((r) => r.group)).sort(sortThai), "ทุกกลุ่ม KPI");
+    populateSelect("rdFilterExcellence", unique(STATE.rawRows.map((r) => r.excellence)).sort(sortThai), "ทุก Excellence");
+    populateSelect("rdFilterSection", unique(STATE.rawRows.map((r) => r.section)).sort(sortThai), "ทุกหน่วยงาน");
   }
 
   function applyFilters() {
@@ -697,8 +567,7 @@
     const group = normalizeText($("rdFilterGroup")?.value);
     const excellence = normalizeText($("rdFilterExcellence")?.value);
     const section = normalizeText($("rdFilterSection")?.value);
-    const search = normalizeText($("rdFilterSearch")?.value)
-      .toLocaleLowerCase("th");
+    const search = normalizeText($("rdFilterSearch")?.value).toLocaleLowerCase("th");
 
     STATE.page = 1;
 
@@ -710,16 +579,8 @@
 
       if (search) {
         const text = [
-          row.kpi,
-          row.description,
-          row.group,
-          row.excellence,
-          row.section,
-          row.formula,
-          row.criterion,
-          row.result,
-          row.target,
-          row.summary
+          row.kpi, row.description, row.group, row.excellence, row.section,
+          row.formula, row.criterion, row.result, row.target, row.summary
         ].map(normalizeText).join(" ").toLocaleLowerCase("th");
 
         if (!text.includes(search)) return false;
@@ -736,29 +597,30 @@
   }
 
   function resetFilters() {
-    [
-      "rdFilterYear",
-      "rdFilterGroup",
-      "rdFilterExcellence",
-      "rdFilterSection",
-      "rdFilterSearch"
-    ].forEach((id) => {
-      const element = $(id);
-      if (element) element.value = "";
-    });
+    ["rdFilterYear", "rdFilterGroup", "rdFilterExcellence", "rdFilterSection", "rdFilterSearch"]
+      .forEach((id) => {
+        const element = $(id);
+        if (element) element.value = "";
+      });
 
     applyFilters();
   }
 
   /* ==========================================================
-     12. SUMMARY CARDS
-  ========================================================== */
-
-  /* ==========================================================
-     13. CHARTS
+     12. CHARTS
   ========================================================== */
 
   const CHART_FONT = '"IBM Plex Sans Thai", "Inter", system-ui, sans-serif';
+
+  const GROUP_EMPTY_LABEL = "ไม่ระบุกลุ่ม";
+  const GROUP_OTHER_LABEL = "อื่น ๆ";
+  const GROUP_MAX_SLICES = 12;
+
+  const GROUP_PALETTE = [
+    "#1a8f63", "#4f8fd6", "#14a3a0", "#e3a634",
+    "#8b6bd6", "#d9628b", "#3aa0bd", "#7bb342",
+    "#e07b39", "#6b7a8f", "#2fbf9a", "#a779d6"
+  ];
 
   function ensureChartDefaults() {
     const C = window.Chart;
@@ -766,7 +628,6 @@
 
     C.__rdStyled = true;
 
-    // ตั้งค่า style กลาง — ถ้าเวอร์ชัน Chart.js ไม่รองรับบางค่า ให้ข้ามไป ไม่ให้กราฟพัง
     try {
       C.defaults.font.family = CHART_FONT;
       C.defaults.font.size = 12;
@@ -821,12 +682,24 @@
 
   function destroyChart(key) {
     const chart = STATE.charts[key];
-
-    if (chart && typeof chart.destroy === "function") {
-      chart.destroy();
-    }
-
+    if (chart && typeof chart.destroy === "function") chart.destroy();
     STATE.charts[key] = null;
+  }
+
+  // คลิก/ชี้เมาส์อยู่ในรูตรงกลางโดนัทหรือไม่
+  function isInsideDoughnutHole(chart, event) {
+    const area = chart.chartArea;
+    const arc = chart.getDatasetMeta(0)?.data?.[0];
+    if (!area || !arc) return false;
+
+    const rect = chart.canvas.getBoundingClientRect();
+    const x = event.native ? event.native.clientX - rect.left : event.x;
+    const y = event.native ? event.native.clientY - rect.top : event.y;
+
+    const centerX = (area.left + area.right) / 2;
+    const centerY = (area.top + area.bottom) / 2;
+
+    return Math.hypot(x - centerX, y - centerY) <= arc.innerRadius;
   }
 
   function renderCharts(rows) {
@@ -834,395 +707,169 @@
 
     if (!window.Chart) {
       destroyChart("group");
-
       setText("rdGroupChartNote", "ไม่พบ Chart.js จึงไม่สามารถแสดงกราฟได้");
-
       return false;
     }
 
-    let result = true;
-
     try {
       renderGroupChart(rows);
+      return true;
     } catch (error) {
       console.error("[REPORT CHART] Group chart error:", error);
       destroyChart("group");
       setText("rdGroupChartNote", "สร้างกราฟจำนวนตัวชี้วัดตามกลุ่มไม่สำเร็จ");
-      result = false;
+      return false;
     }
-
-    return result;
   }
 
-  const GROUP_EMPTY_LABEL = "ไม่ระบุกลุ่ม";
-  const GROUP_OTHER_LABEL = "อื่น ๆ";
-  const GROUP_MAX_SLICES = 12;
+  /* ----------------------------------------------------------
+   * จำนวนตัวชี้วัดตามกลุ่ม (kpi_Group_Des)
+   * - คลิกตรงกลางกราฟ: เปิดหน้า KPI
+   * - คลิกชิ้นกราฟ: เปิดหน้า Excellence ตามกลุ่ม
+   * - รวมกลุ่มที่เกิน GROUP_MAX_SLICES เป็น "อื่น ๆ"
+   * ---------------------------------------------------------- */
 
-  const GROUP_PALETTE = [
-    "#1a8f63", "#4f8fd6", "#14a3a0", "#e3a634",
-    "#8b6bd6", "#d9628b", "#3aa0bd", "#7bb342",
-    "#e07b39", "#6b7a8f", "#2fbf9a", "#a779d6"
-  ];
+  function renderGroupChart(rows) {
+    const canvas = $("rdGroupChart");
+    if (!canvas) return;
 
-/* ==========================================================
-   EXCELLENCE SUMMARY — นับจากคอลัมน์ Summary
-========================================================== */
+    destroyChart("group");
 
-function renderExcellenceSummary(rows, selectedGroup, groupMap = null) {
-  const container = $("rdExcellenceSummary");
-  if (!container) return;
+    const counts = new Map();
 
-  const selectedGroups = groupMap?.get(selectedGroup) || [selectedGroup];
+    (Array.isArray(rows) ? rows : []).forEach((row) => {
+      const label = normalizeText(row.group) || GROUP_EMPTY_LABEL;
+      counts.set(label, (counts.get(label) || 0) + 1);
+    });
 
-  const selectedRows = rows.filter((row) => {
-    const group = normalizeText(row.group) || GROUP_EMPTY_LABEL;
-    return selectedGroups.includes(group);
-  });
+    if (!counts.size) {
+      setText("rdGroupChartNote", "ไม่มีข้อมูลกลุ่มตัวชี้วัดสำหรับแสดงกราฟ");
 
-  // นับ Summary แยกตาม Excellence และข้อความ Summary
-  const counts = new Map();
-  let totalSummary = 0;
-  let rowsWithoutSummary = 0;
-
-  selectedRows.forEach((row) => {
-    const excellence = normalizeText(row.excellence) || "ไม่ระบุ Excellence";
-    const summary = normalizeText(row.summary);
-
-    if (!summary) {
-      rowsWithoutSummary++;
+      const summary = $("rdExcellenceSummary");
+      if (summary) {
+        summary.innerHTML = `
+          <div class="rd-excellence-empty">
+            ไม่มีข้อมูลกลุ่มตัวชี้วัดสำหรับสรุป Excellence
+          </div>`;
+      }
       return;
     }
 
-    if (!counts.has(excellence)) {
-      counts.set(excellence, new Map());
-    }
-
-    const summaryMap = counts.get(excellence);
-
-    summaryMap.set(
-      summary,
-      (summaryMap.get(summary) || 0) + 1
+    let entries = [...counts.entries()].sort(
+      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "th")
     );
 
-    totalSummary++;
-  });
+    // กลุ่มจริงที่อยู่เบื้องหลังแต่ละชิ้นกราฟ
+    const groupMap = new Map();
+    entries.forEach(([label]) => groupMap.set(label, [label]));
 
-  const excellenceEntries = [...counts.entries()].sort(
-    (a, b) => {
-      const countA = [...a[1].values()].reduce((sum, n) => sum + n, 0);
-      const countB = [...b[1].values()].reduce((sum, n) => sum + n, 0);
+    if (entries.length > GROUP_MAX_SLICES) {
+      const rest = entries.slice(GROUP_MAX_SLICES - 1);
+      entries = entries.slice(0, GROUP_MAX_SLICES - 1);
 
-      return countB - countA || a[0].localeCompare(b[0], "th");
+      entries.push([
+        GROUP_OTHER_LABEL,
+        rest.reduce((sum, item) => sum + item[1], 0)
+      ]);
+      groupMap.set(GROUP_OTHER_LABEL, rest.map((item) => item[0]));
     }
-  );
 
-  const heading = selectedGroups.length > 1
-    ? `สรุป Excellence: ${selectedGroup}`
-    : `สรุป Excellence: ${selectedGroup}`;
+    const labels = entries.map((item) => item[0]);
+    const values = entries.map((item) => item[1]);
+    const total = values.reduce((sum, value) => sum + value, 0);
 
-  if (!totalSummary) {
-    container.innerHTML = `
-      <div class="rd-excellence-header">
-        <h3>${escapeHTML(heading)}</h3>
-        <p>ตัวชี้วัดที่ตรงกับกลุ่ม: ${formatNumber(selectedRows.length, 0)} รายการ</p>
-      </div>
-      <div class="rd-excellence-empty">
-        ไม่พบข้อมูล Summary ที่มีค่าในกลุ่มนี้
-      </div>
-    `;
-    return;
-  }
+    const colors = labels.map((label, index) =>
+      label === GROUP_OTHER_LABEL || label === GROUP_EMPTY_LABEL
+        ? "#b4bdb8"
+        : GROUP_PALETTE[index % GROUP_PALETTE.length]
+    );
 
-  const detailHTML = excellenceEntries.map(([excellence, summaryMap]) => {
-    const excellenceTotal = [...summaryMap.values()]
-      .reduce((sum, n) => sum + n, 0);
-
-    const summaryHTML = [...summaryMap.entries()]
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "th"))
-      .map(([summary, count]) => {
-        const percent = count / totalSummary * 100;
-
-        return `
-          <div class="rd-excellence-item">
-            <span class="rd-excellence-summary-text">
-              ${escapeHTML(summary)}
-            </span>
-            <strong>${formatNumber(count, 0)}</strong>
-            <small>${formatNumber(percent, 1)}%</small>
-          </div>
-        `;
-      }).join("");
-
-    return `
-      <article class="rd-excellence-card">
-        <div class="rd-excellence-card-header">
-          <div>
-            <h4>${escapeHTML(excellence)}</h4>
-            <small>จำนวน Summary ${formatNumber(excellenceTotal, 0)} รายการ</small>
-          </div>
-          <strong>${formatNumber(excellenceTotal / totalSummary * 100, 1)}%</strong>
-        </div>
-        <div class="rd-excellence-list">
-          ${summaryHTML}
-        </div>
-      </article>
-    `;
-  }).join("");
-
-  container.innerHTML = `
-    <div class="rd-excellence-header">
-      <h3>${escapeHTML(heading)}</h3>
-      <p>จำแนกตาม Excellence และนับรายการจาก Summary</p>
-    </div>
-
-    <div class="rd-excellence-kpis">
-      <div class="rd-excellence-stat">
-        <span>ตัวชี้วัดในกลุ่ม</span>
-        <strong>${formatNumber(selectedRows.length, 0)}</strong>
-      </div>
-      <div class="rd-excellence-stat">
-        <span>รายการ Summary ที่นับได้</span>
-        <strong>${formatNumber(totalSummary, 0)}</strong>
-      </div>
-      <div class="rd-excellence-stat">
-        <span>รายการไม่มี Summary</span>
-        <strong>${formatNumber(rowsWithoutSummary, 0)}</strong>
-      </div>
-    </div>
-
-    <div class="rd-excellence-cards">
-      ${detailHTML}
-    </div>
-  `;
-}
-
-/* ==========================================================
-   NAVIGATE TO EXCELLENCE.HTML
-========================================================== */
-
-function openExcellencePage(selectedGroup) {
-  const url = new URL("Excellence.html", document.baseURI);
-
-  // ส่งชื่อกลุ่ม KPI ที่คลิกจากกราฟ
-  url.searchParams.set("group", selectedGroup);
-
-  // ส่งชื่อ Excellence สำหรับใช้กรองข้อมูลในหน้าปลายทาง
-  url.searchParams.set("excellence", selectedGroup);
-
-  window.location.href = url.href;
-}
-
-  // จำนวนตัวชี้วัดตามกลุ่ม (คอลัมน์ kpi_Group_Des)
-  
-
-/* ============================================================
- * จำนวนตัวชี้วัดตามกลุ่ม (kpi_Group_Des)
- * - คลิกตรงกลางกราฟ: เปิด KPI.html
- * - คลิกชิ้นกราฟ: เปิด Excellence.html ตามกลุ่ม
- * - รวมกลุ่มที่เกิน GROUP_MAX_SLICES เป็น "อื่น ๆ"
- * ============================================================ */
-
-function renderGroupChart(rows) {
-  const canvas = $("rdGroupChart");
-  if (!canvas) return;
-
-  destroyChart("group");
-
-  const counts = new Map();
-
-  // นับจำนวนตัวชี้วัดแยกตามกลุ่ม
-  (Array.isArray(rows) ? rows : []).forEach((row) => {
-    const label = normalizeText(row.group) || GROUP_EMPTY_LABEL;
-    counts.set(label, (counts.get(label) || 0) + 1);
-  });
-
-  // กรณีไม่มีข้อมูล
-  if (!counts.size) {
     setText(
       "rdGroupChartNote",
-      "ไม่มีข้อมูลกลุ่มตัวชี้วัดสำหรับแสดงกราฟ"
+      `แสดง ${formatNumber(counts.size, 0)} กลุ่มตัวชี้วัด · ` +
+      `รวม ${formatNumber(total, 0)} ตัวชี้วัด · ` +
+      "คลิกตรงกลางเพื่อดู KPI หรือคลิกชิ้นกราฟเพื่อดู Excellence"
     );
 
-    const summary = $("rdExcellenceSummary");
+    if (canvas.parentElement) canvas.parentElement.style.height = "360px";
 
-    if (summary) {
-      summary.innerHTML = `
-        <div class="rd-excellence-empty">
-          ไม่มีข้อมูลกลุ่มตัวชี้วัดสำหรับสรุป Excellence
-        </div>
-      `;
-    }
+    STATE.charts.group = new window.Chart(canvas, {
+      type: "doughnut",
+      plugins: [doughnutCenterPlugin],
 
-    return;
-  }
-
-  // เรียงจำนวนจากมากไปน้อย
-  let entries = [...counts.entries()].sort(
-    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "th")
-  );
-
-  // เก็บกลุ่มจริงสำหรับใช้แสดงผล
-  const groupMap = new Map();
-
-  entries.forEach(([label]) => {
-    groupMap.set(label, [label]);
-  });
-
-  // รวมกลุ่มที่เกินจำนวนแผ่นสูงสุดเป็น "อื่น ๆ"
-  if (entries.length > GROUP_MAX_SLICES) {
-    const rest = entries.slice(GROUP_MAX_SLICES - 1);
-
-    entries = entries.slice(0, GROUP_MAX_SLICES - 1);
-
-    entries.push([
-      GROUP_OTHER_LABEL,
-      rest.reduce((sum, item) => sum + item[1], 0)
-    ]);
-
-    groupMap.set(
-      GROUP_OTHER_LABEL,
-      rest.map((item) => item[0])
-    );
-  }
-
-  const labels = entries.map((item) => item[0]);
-  const values = entries.map((item) => item[1]);
-  const total = values.reduce((sum, value) => sum + value, 0);
-
-  const colors = labels.map((label, index) =>
-    label === GROUP_OTHER_LABEL || label === GROUP_EMPTY_LABEL
-      ? "#b4bdb8"
-      : GROUP_PALETTE[index % GROUP_PALETTE.length]
-  );
-
-  setText(
-    "rdGroupChartNote",
-    `แสดง ${formatNumber(counts.size, 0)} กลุ่มตัวชี้วัด · ` +
-    `รวม ${formatNumber(total, 0)} ตัวชี้วัด · ` +
-    "คลิกตรงกลางเพื่อดู KPI หรือคลิกชิ้นกราฟเพื่อดู Excellence"
-  );
-
-  const container = canvas.parentElement;
-
-  if (container) {
-    container.style.height = "360px";
-  }
-
-  STATE.charts.group = new window.Chart(canvas, {
-    type: "doughnut",
-    plugins: [doughnutCenterPlugin],
-
-    data: {
-      labels,
-      datasets: [{
-        data: values,
-        backgroundColor: colors,
-        borderColor: "#ffffff",
-        borderWidth: 3,
-        hoverOffset: 8
-      }]
-    },
-
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      cutout: "68%",
-
-      // ตรวจสอบว่าคลิกตรงกลางหรือคลิกชิ้นกราฟ
-      onClick(event, elements, chart) {
-        const canvas = chart.canvas;
-        const rect = canvas.getBoundingClientRect();
-
-        // พิกัดเมาส์ภายใน Canvas
-        const x = event.native
-          ? event.native.clientX - rect.left
-          : event.x;
-
-        const y = event.native
-          ? event.native.clientY - rect.top
-          : event.y;
-
-        // จุดศูนย์กลางของ Doughnut
-        const centerX = chart.chartArea
-          ? (chart.chartArea.left + chart.chartArea.right) / 2
-          : chart.width / 2;
-
-        const centerY = chart.chartArea
-          ? (chart.chartArea.top + chart.chartArea.bottom) / 2
-          : chart.height / 2;
-
-        const distance = Math.sqrt(
-          Math.pow(x - centerX, 2) +
-          Math.pow(y - centerY, 2)
-        );
-
-        // รัศมีด้านในของกราฟ
-        const meta = chart.getDatasetMeta(0);
-        const arc = meta.data && meta.data[0];
-        const innerRadius = arc ? arc.innerRadius : 0;
-
-        // คลิกตรงกลางกราฟ → เปิด KPI.html
-        if (distance <= innerRadius) {
-          window.location.href = "KPI.html";
-          return;
-        }
-
-        // คลิกนอกชิ้นกราฟ ไม่ต้องทำอะไร
-        if (!elements || !elements.length) return;
-
-        const index = elements[0].index;
-        const selectedGroup = chart.data.labels[index];
-
-        // คลิกกลุ่ม "อื่น ๆ" → ส่งรายชื่อกลุ่มจริงที่ถูกรวมไว้
-        if (
-          selectedGroup === GROUP_OTHER_LABEL &&
-          groupMap.has(GROUP_OTHER_LABEL)
-        ) {
-          const groupedNames = groupMap.get(GROUP_OTHER_LABEL);
-
-          // ส่งชื่อกลุ่มที่รวมไว้ให้หน้า Excellence
-          openExcellencePage(groupedNames.join(", "));
-          return;
-        }
-
-        // คลิกกลุ่มปกติ → เปิด Excellence ตามกลุ่ม
-        openExcellencePage(selectedGroup);
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: colors,
+          borderColor: "#ffffff",
+          borderWidth: 3,
+          hoverOffset: 8
+        }]
       },
 
-      plugins: {
-        legend: {
-          position: "bottom",
-          labels: {
-            usePointStyle: true,
-            pointStyle: "circle",
-            boxWidth: 8,
-            padding: 14
-          }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: "68%",
+
+        // เปลี่ยนเคอร์เซอร์เป็นมือเมื่อชี้ที่ชิ้นกราฟหรือรูตรงกลาง
+        onHover(event, elements, chart) {
+          chart.canvas.style.cursor =
+            elements.length || isInsideDoughnutHole(chart, event)
+              ? "pointer"
+              : "default";
         },
 
-        tooltip: {
-          callbacks: {
-            label(context) {
-              const value = Number(context.raw || 0);
+        onClick(event, elements, chart) {
+          // คลิกตรงกลางกราฟ → หน้า KPI
+          if (isInsideDoughnutHole(chart, event)) {
+            openKpiPage();
+            return;
+          }
 
-              const percent = total
-                ? formatNumber((value / total) * 100, 1)
-                : "0";
+          if (!elements || !elements.length) return;
 
-              return `${context.label}: ${formatNumber(value, 0)} รายการ (${percent}%)`;
+          const selectedGroup = chart.data.labels[elements[0].index];
+
+          // กลุ่ม "อื่น ๆ" → ส่งรายชื่อกลุ่มจริงที่ถูกรวมไว้
+          if (selectedGroup === GROUP_OTHER_LABEL && groupMap.has(GROUP_OTHER_LABEL)) {
+            openExcellencePage(groupMap.get(GROUP_OTHER_LABEL).join(", "));
+            return;
+          }
+
+          openExcellencePage(selectedGroup);
+        },
+
+        plugins: {
+          legend: {
+            position: "bottom",
+            labels: {
+              usePointStyle: true,
+              pointStyle: "circle",
+              boxWidth: 8,
+              padding: 14
+            }
+          },
+
+          tooltip: {
+            callbacks: {
+              label(context) {
+                const value = Number(context.raw || 0);
+                const percent = total ? formatNumber((value / total) * 100, 1) : "0";
+                return `${context.label}: ${formatNumber(value, 0)} รายการ (${percent}%)`;
+              }
             }
           }
         }
       }
-    }
-  });
-}
+    });
+  }
 
   /* ==========================================================
-     14. TABLE  (ตารางสวยขึ้น + ตัวกรองแบบ Excel)
+     13. TABLE (ตารางสวยขึ้น + ตัวกรองแบบ Excel)
   ========================================================== */
 
-  /* ---------- CSS ของตาราง (ฉีดเข้าหน้าอัตโนมัติ) ---------- */
   const TABLE_CSS = `
 #reportKpiDashboard .rd-table-wrapper{max-height:620px;overflow:auto}
 #reportKpiDashboard .rd-table thead th{z-index:2}
@@ -1253,8 +900,6 @@ function renderGroupChart(rows) {
 .rdx-ok:disabled{opacity:.5;cursor:not-allowed}
 `;
 
-  /* ---------- ตัวกรองรายคอลัมน์ ---------- */
-
   const TABLE_COLS = [
     { key: "year",        label: "ปีงบประมาณ" },
     { key: "group",       label: "กลุ่มตัวชี้วัด" },
@@ -1275,13 +920,24 @@ function renderGroupChart(rows) {
       : `${formatNumber(value)}${unit ? ` ${unit}` : ""}`;
   }
 
+  function formatRate(value) {
+    if (isBlank(value)) return "—";
+
+    const text = String(value).trim();
+    const number = numberValue(value);
+
+    if (number === null) return text;
+
+    // แสดง % เฉพาะเมื่อค่าต้นฉบับมี %
+    return text.includes("%") ? `${formatNumber(number)}%` : formatNumber(number);
+  }
+
   // ค่าที่ใช้กรอง = ข้อความเดียวกับที่แสดงในตาราง
   function colValue(row, key) {
     switch (key) {
       case "year":        return normalizeText(row.year);
       case "group":       return normalizeText(row.group);
-      case "description": return [row.kpi, row.description]
-                            .map(normalizeText).filter(Boolean).join(" – ");
+      case "description": return [row.kpi, row.description].map(normalizeText).filter(Boolean).join(" – ");
       case "result":      return withUnit(row.result, row.unit);
       case "target":      return withUnit(row.target, row.unit);
       case "percent":     return isBlank(row.percent) ? "" : formatRate(row.percent);
@@ -1290,7 +946,7 @@ function renderGroupChart(rows) {
     }
   }
 
-  // แถวที่ผ่านตัวกรองคอลัมน์อื่นทั้งหมด (ยกเว้นคอลัมน์ exceptKey) แบบเดียวกับ Excel
+  // แถวที่ผ่านตัวกรองคอลัมน์อื่นทั้งหมด (ยกเว้น exceptKey) แบบเดียวกับ Excel
   function rowsExcept(exceptKey) {
     return STATE.filteredRows.filter((row) =>
       TABLE_COLS.every((col) =>
@@ -1329,9 +985,7 @@ function renderGroupChart(rows) {
     );
 
     const current = colFilters[key];
-    const selected = new Set(
-      current ? values.filter((v) => current.has(v)) : values
-    );
+    const selected = new Set(current ? values.filter((v) => current.has(v)) : values);
     const labelOf = (v) => (v === "" ? "(ว่าง)" : v);
 
     colPopup = document.createElement("div");
@@ -1379,7 +1033,8 @@ function renderGroupChart(rows) {
     list.addEventListener("change", (event) => {
       const box = event.target.closest("input[data-v]");
       if (!box) return;
-      box.checked ? selected.add(box.dataset.v) : selected.delete(box.dataset.v);
+      if (box.checked) selected.add(box.dataset.v);
+      else selected.delete(box.dataset.v);
       draw();
     });
 
@@ -1444,9 +1099,8 @@ function renderGroupChart(rows) {
 
       event.stopPropagation();
 
-      colPopup && colPopup.dataset.col === btn.dataset.col
-        ? closeColPopup()
-        : openColPopup(btn);
+      if (colPopup && colPopup.dataset.col === btn.dataset.col) closeColPopup();
+      else openColPopup(btn);
     });
 
     const toolbar = document.querySelector(".rd-table-toolbar");
@@ -1489,24 +1143,9 @@ function renderGroupChart(rows) {
     body.innerHTML = `
       <tr>
         <td colspan="7" class="rd-empty rd-table-placeholder">${escapeHTML(message)}</td>
-      </tr>
-    `;
+      </tr>`;
 
     setText("rdVisibleCount", "0");
-  }
-
-  function formatRate(value) {
-    if (isBlank(value)) return "—";
-
-    const text = String(value).trim();
-    const number = numberValue(value);
-
-    if (number === null) return text;
-
-    // แสดง % เฉพาะเมื่อค่าต้นฉบับมี %
-    return text.includes("%")
-      ? `${formatNumber(number)}%`
-      : formatNumber(number);
   }
 
   function renderPagination(from, to, total, page, totalPages) {
@@ -1530,10 +1169,7 @@ function renderGroupChart(rows) {
   }
 
   function badgeClass(row) {
-    const result = numberValue(row.result);
-    const target = numberValue(row.target);
-
-    return result === null || target === null
+    return numberValue(row.result) === null || numberValue(row.target) === null
       ? "rd-badge-neutral"
       : "rd-badge-blue";
   }
@@ -1543,9 +1179,7 @@ function renderGroupChart(rows) {
     const number = numberValue(row.percent);
 
     // แสดงแถบเฉพาะค่าที่อยู่ในช่วง 0–100
-    if (number === null || number < 0 || number > 100) {
-      return escapeHTML(text);
-    }
+    if (number === null || number < 0 || number > 100) return escapeHTML(text);
 
     return `
       <div class="rdx-pct">
@@ -1558,7 +1192,7 @@ function renderGroupChart(rows) {
     const body = $("rdKpiTableBody");
     if (!body) return;
 
-    // กรองตามตัวกรองรายคอลัมน์ (ตัวกรองด้านบนทำมาแล้วใน sourceRows)
+    // ตัวกรองด้านบนทำมาแล้วใน sourceRows — ตรงนี้กรองตามคอลัมน์
     const rows = (Array.isArray(sourceRows) ? sourceRows : []).filter((row) =>
       TABLE_COLS.every((col) =>
         !colFilters[col.key] || colFilters[col.key].has(colValue(row, col.key))
@@ -1600,94 +1234,87 @@ function renderGroupChart(rows) {
         <tr data-rd-id="${escapeHTML(row._id)}">
           <td>${escapeHTML(row.year || "—")}</td>
           <td>${escapeHTML(row.group || "—")}</td>
-
           <td>
             <div class="rd-kpi-name">${escapeHTML(title)}</div>
-            ${description
-              ? `<span class="rd-kpi-description">${escapeHTML(description)}</span>`
-              : ""}
+            ${description ? `<span class="rd-kpi-description">${escapeHTML(description)}</span>` : ""}
           </td>
-
           <td class="rd-number"><span class="rd-badge ${badgeClass(row)}">${escapeHTML(withUnit(row.result, row.unit) || "—")}</span></td>
           <td class="rd-number">${escapeHTML(withUnit(row.target, row.unit) || "—")}</td>
           <td class="rd-number">${percentCell(row)}</td>
           <td>${status
             ? `<span class="rd-status-badge ${statusPillClass(status)}">${escapeHTML(status)}</span>`
             : "—"}</td>
-        </tr>
-      `;
+        </tr>`;
     }).join("");
   }
 
   /* ==========================================================
-     16. RENDER ALL
+     14. RENDER ALL
   ========================================================== */
 
   function renderAll() {
-    const rows = STATE.filteredRows;
-
-    renderCharts(rows);
-    renderTable(rows);
+    renderCharts(STATE.filteredRows);
+    renderTable(STATE.filteredRows);
   }
 
   /* ==========================================================
-     17. EVENT HANDLERS
+     15. EXPORT / EVENTS
   ========================================================== */
 
-  function exportDashboardXlsx() {
+  async function exportDashboardXlsx() {
     if (!STATE.rawRows.length) return;
 
-    if (!window.XLSX) {
-      showAlert("โหลดไลบรารี Excel (SheetJS) ไม่สำเร็จ จึงส่งออกไม่ได้", "error");
-      return;
+    const button = $("rdExportBtn");
+    if (button) button.disabled = true;
+
+    try {
+      // โหลด SheetJS เมื่อต้องใช้ ถ้าหน้า HTML ยังไม่ได้ include
+      const ready = await ensureSheetJS();
+
+      if (!ready) {
+        showAlert("โหลดไลบรารี Excel (SheetJS) ไม่สำเร็จ จึงส่งออกไม่ได้", "error");
+        return;
+      }
+
+      const headers = [
+        "ปีงบประมาณ", "กลุ่มตัวชี้วัด", "Excellence", "หน่วยงาน",
+        "รหัส KPI", "คำอธิบาย", "ผลลัพธ์", "เป้าหมาย",
+        "ร้อยละ", "สรุปผล", "เกณฑ์", "สูตร"
+      ];
+
+      const data = [
+        headers,
+        ...STATE.filteredRows.map((row) => [
+          row.year, row.group, row.excellence, row.section,
+          row.kpi, row.description, row.result, row.target,
+          row.percent, row.summary, row.criterion, row.formula
+        ])
+      ];
+
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(data), "REPORT_KPI");
+      XLSX.writeFile(workbook, "REPORT_KPI_export.xlsx");
+
+    } finally {
+      if (button) button.disabled = STATE.rawRows.length === 0;
     }
-
-    const rows = STATE.filteredRows;
-    const headers = [
-      "ปีงบประมาณ", "กลุ่มตัวชี้วัด", "Excellence", "หน่วยงาน",
-      "รหัส KPI", "คำอธิบาย", "ผลลัพธ์", "เป้าหมาย",
-      "ร้อยละ", "สรุปผล", "เกณฑ์", "สูตร"
-    ];
-
-    const data = [
-      headers,
-      ...rows.map((row) => [
-        row.year, row.group, row.excellence, row.section,
-        row.kpi, row.description, row.result, row.target,
-        row.percent, row.summary, row.criterion, row.formula
-      ])
-    ];
-
-    const workbook = XLSX.utils.book_new();
-    const worksheet = XLSX.utils.aoa_to_sheet(data);
-    XLSX.utils.book_append_sheet(workbook, worksheet, "REPORT_KPI");
-    XLSX.writeFile(workbook, "REPORT_KPI_export.xlsx");
   }
 
   function bindEvents() {
-     initTableFilters();   // ← เพิ่มบรรทัดนี้
-    [
-      "rdFilterYear",
-      "rdFilterGroup",
-      "rdFilterExcellence",
-      "rdFilterSection"
-    ].forEach((id) => {
-      $(id)?.addEventListener("change", applyFilters);
-    });
+    initTableFilters();
+
+    ["rdFilterYear", "rdFilterGroup", "rdFilterExcellence", "rdFilterSection"]
+      .forEach((id) => $(id)?.addEventListener("change", applyFilters));
 
     let searchTimer;
     $("rdFilterSearch")?.addEventListener("input", () => {
       clearTimeout(searchTimer);
       searchTimer = setTimeout(applyFilters, 200);
     });
+
     $("rdResetFilters")?.addEventListener("click", resetFilters);
-
-    $("rdRefreshBtn")?.addEventListener("click", () => {
-      loadDashboard();
-    });
-
+    $("rdRefreshBtn")?.addEventListener("click", () => loadDashboard());
     $("rdExportBtn")?.addEventListener("click", exportDashboardXlsx);
-
 
     $("rdPageSize")?.addEventListener("change", (event) => {
       const size = Number(event.target.value);
@@ -1710,7 +1337,7 @@ function renderGroupChart(rows) {
   }
 
   /* ==========================================================
-     18. INITIALIZE
+     16. INITIALIZE
   ========================================================== */
 
   function initDashboard() {
@@ -1719,17 +1346,12 @@ function renderGroupChart(rows) {
     STATE.initialized = true;
     bindEvents();
 
-    setLoadingStatus(
-      "loading",
-      "กำลังเชื่อมต่อ Google Apps Script...",
-      "กำลังโหลด"
-    );
-
+    setLoadingStatus("loading", "กำลังเชื่อมต่อ Google Apps Script...", "กำลังโหลด");
     loadDashboard();
   }
 
   /* ==========================================================
-     19. LOAD DATA
+     17. LOAD DATA
   ========================================================== */
 
   async function loadDashboard(options = {}) {
@@ -1743,12 +1365,7 @@ function renderGroupChart(rows) {
     const exportBtn = $("rdExportBtn");
     if (exportBtn) exportBtn.disabled = true;
 
-    setLoadingStatus(
-      "loading",
-      "กำลังอ่านข้อมูลจากชีต REPORT_02...",
-      "กำลังโหลด"
-    );
-
+    setLoadingStatus("loading", "กำลังอ่านข้อมูลจากชีต REPORT_02...", "กำลังโหลด");
     setStatus("กำลังโหลดข้อมูลจาก REPORT_02...");
 
     try {
@@ -1764,7 +1381,6 @@ function renderGroupChart(rows) {
       STATE.rawRows = result.rows.map((row, index) =>
         normalizeRow(row, result.headers, index)
       );
-
       STATE.lastUpdated = new Date();
 
       if (exportBtn) exportBtn.disabled = STATE.rawRows.length === 0;
@@ -1776,76 +1392,37 @@ function renderGroupChart(rows) {
 
       renderTable(STATE.filteredRows);
 
-      const chartsRendered = chartAvailable
-        ? renderCharts(STATE.filteredRows)
-        : false;
+      const chartsRendered = chartAvailable ? renderCharts(STATE.filteredRows) : false;
 
       if (!chartAvailable) {
-        setText(
-          "rdGroupChartNote",
-          "โหลดข้อมูลแล้ว แต่โหลด Chart.js ไม่สำเร็จ"
-        );
+        setText("rdGroupChartNote", "โหลดข้อมูลแล้ว แต่โหลด Chart.js ไม่สำเร็จ");
       }
 
       setText("rdLastUpdated", formatDate(STATE.lastUpdated));
 
       const total = STATE.rawRows.length;
       const expected = result.expectedTotal;
+      const totalText = total.toLocaleString("th-TH");
 
       if (total === 0) {
-        setFinalLoadingStatus(
-          0,
-          "API ตอบกลับแล้ว แต่ไม่พบข้อมูลในชีต REPORT_02"
-        );
-
-        showAlert(
-          "ไม่พบข้อมูล กรุณาตรวจสอบชื่อชีตและการตั้งค่า API ใน Code.gs",
-          "warning"
-        );
-
+        setFinalLoadingStatus(0, "API ตอบกลับแล้ว แต่ไม่พบข้อมูลในชีต REPORT_02");
+        showAlert("ไม่พบข้อมูล กรุณาตรวจสอบชื่อชีตและการตั้งค่า API ใน Code.gs", "warning");
         setStatus("เชื่อมต่อสำเร็จ แต่ไม่พบข้อมูล", "success");
 
       } else if (expected !== null && total < expected) {
-        setFinalLoadingStatus(
-          total,
-          `โหลดได้ ${total.toLocaleString("th-TH")} จาก ${expected.toLocaleString("th-TH")} รายการ`
-        );
-
-        showAlert(
-          `โหลดข้อมูลได้ ${total} จาก ${expected} รายการ กรุณาตรวจสอบ pagination`,
-          "warning"
-        );
-
+        setFinalLoadingStatus(total, `โหลดได้ ${totalText} จาก ${expected.toLocaleString("th-TH")} รายการ`);
+        showAlert(`โหลดข้อมูลได้ ${total} จาก ${expected} รายการ กรุณาตรวจสอบ pagination`, "warning");
         setStatus("โหลดข้อมูลแล้ว แต่ควรตรวจสอบจำนวนรายการ", "success");
 
       } else if (!chartsRendered) {
-        setFinalLoadingStatus(
-          total,
-          "โหลดข้อมูลสำเร็จ แต่กราฟไม่พร้อมใช้งาน"
-        );
-
-        showAlert(
-          "ข้อมูลโหลดแล้ว แต่สร้างกราฟไม่ได้ สามารถใช้ตารางได้ตามปกติ",
-          "warning"
-        );
-
-        setStatus(
-          `โหลดข้อมูลสำเร็จ ${total.toLocaleString("th-TH")} รายการ`,
-          "success"
-        );
+        setFinalLoadingStatus(total, "โหลดข้อมูลสำเร็จ แต่กราฟไม่พร้อมใช้งาน");
+        showAlert("ข้อมูลโหลดแล้ว แต่สร้างกราฟไม่ได้ สามารถใช้ตารางได้ตามปกติ", "warning");
+        setStatus(`โหลดข้อมูลสำเร็จ ${totalText} รายการ`, "success");
 
       } else {
-        setFinalLoadingStatus(
-          total,
-          "เชื่อมต่อ Google Apps Script และแสดง Dashboard เรียบร้อยแล้ว"
-        );
-
+        setFinalLoadingStatus(total, "เชื่อมต่อ Google Apps Script และแสดง Dashboard เรียบร้อยแล้ว");
         clearAlert();
-
-        setStatus(
-          `โหลดข้อมูลสำเร็จ ${total.toLocaleString("th-TH")} รายการ`,
-          "success"
-        );
+        setStatus(`โหลดข้อมูลสำเร็จ ${totalText} รายการ`, "success");
       }
 
       console.info("[REPORT] Dashboard loaded", {
@@ -1857,21 +1434,13 @@ function renderGroupChart(rows) {
 
     } catch (error) {
       STATE.loadError = error?.message || String(error);
-
       console.error("[REPORT] Dashboard load error:", error);
 
-      setLoadingStatus(
-        "error",
-        STATE.loadError,
-        "ไม่สำเร็จ"
-      );
-
+      setLoadingStatus("error", STATE.loadError, "ไม่สำเร็จ");
       showAlert(STATE.loadError, "error");
       setStatus("โหลดข้อมูลไม่สำเร็จ", "error");
 
-      if (!options.silent) {
-        renderEmptyTable("ไม่สามารถโหลดข้อมูลได้");
-      }
+      if (!options.silent) renderEmptyTable("ไม่สามารถโหลดข้อมูลได้");
 
     } finally {
       STATE.loading = false;
@@ -1879,171 +1448,92 @@ function renderGroupChart(rows) {
   }
 
   /* ==========================================================
-     20. LOAD dashboard.HTML
-  ========================================================== */
-
- 
-  /* ==========================================================
-     20. LOAD dashboard.html
-     Frontend: GitHub Pages
+     18. LOAD dashboard.html (Frontend: GitHub Pages)
   ========================================================== */
 
   async function loadDashboardHTML() {
-    // ป้องกันการโหลด HTML ซ้อนกัน
     if (STATE.loadingHTML) return;
 
     const mount = $("dashboardMount");
 
     if (!mount) {
-      // อาจมี dashboard อยู่ในหน้าโดยตรง
-      if (root()) {
-        initDashboard();
-      } else {
-        console.error(
-          "[REPORT] ไม่พบ #dashboardMount และ #reportKpiDashboard"
-        );
-      }
+      if (root()) initDashboard();
+      else console.error("[REPORT] ไม่พบ #dashboardMount และ #reportKpiDashboard");
       return;
     }
 
-    // ถ้าโหลดและเริ่มต้นแล้ว ไม่ต้องโหลดซ้ำ
-    if (
-      mount.dataset.rdLoaded === "true" &&
-      root() &&
-      STATE.initialized
-    ) {
-      return;
-    }
+    if (mount.dataset.rdLoaded === "true" && root() && STATE.initialized) return;
 
-    // ไม่รองรับการ fetch ไฟล์ผ่าน file://
     if (window.location.protocol === "file:") {
       mount.innerHTML = `
         <div class="card" role="alert">
           <h3>กรุณาเปิดเว็บไซต์ผ่านเว็บเซิร์ฟเวอร์</h3>
           <p>ไม่สามารถโหลด dashboard.html ผ่าน file:// ได้</p>
           <p>ใช้ GitHub Pages หรือ python -m http.server 8000</p>
-        </div>
-      `;
+        </div>`;
       return;
     }
 
     STATE.loadingHTML = true;
 
     mount.innerHTML = `
-      <div class="card" role="status" aria-live="polite">
-        กำลังโหลด Dashboard...
-      </div>
-    `;
+      <div class="card" role="status" aria-live="polite">กำลังโหลด Dashboard...</div>`;
 
     try {
-      // สำคัญ: ใช้ dashboard.html ตัวพิมพ์เล็ก
-      // URL นี้อิงจาก URL ของหน้าเว็บที่กำลังเปิด
-      const url = new URL(
-        "dashboard.html",
-        document.baseURI
-      );
+      // ใช้ dashboard.html ตัวพิมพ์เล็ก อิงจาก URL ของหน้าที่เปิดอยู่
+      const url = new URL("dashboard.html", document.baseURI);
+      url.searchParams.set("_", String(Date.now()));   // กัน cache HTML เก่า
 
-      // ป้องกันการใช้ cache ของ HTML เก่า
-      url.searchParams.set("_", String(Date.now()));
-
-      console.info("[REPORT] Loading dashboard HTML:", url.href);
-
-      const response = await fetch(url.href, {
-        method: "GET",
-        cache: "no-store"
-      });
+      const response = await fetch(url.href, { method: "GET", cache: "no-store" });
 
       if (!response.ok) {
         throw new Error(
-          `โหลด dashboard.html ไม่สำเร็จ ` +
-          `(HTTP ${response.status}) — ${url.pathname}`
+          `โหลด dashboard.html ไม่สำเร็จ (HTTP ${response.status}) — ${url.pathname}`
         );
       }
 
       const html = await response.text();
+      if (!html.trim()) throw new Error("ไฟล์ dashboard.html ไม่มีเนื้อหา");
 
-      if (!html.trim()) {
-        throw new Error("ไฟล์ dashboard.html ไม่มีเนื้อหา");
-      }
-
-      // ตรวจสอบว่าเป็นไฟล์ Dashboard ที่ถูกต้อง
-      const parser = new DOMParser();
-      const parsedHTML = parser.parseFromString(
-        html,
-        "text/html"
-      );
-
-      const dashboardRoot = parsedHTML.getElementById(
-        "reportKpiDashboard"
-      );
+      const parsed = new DOMParser().parseFromString(html, "text/html");
+      const dashboardRoot = parsed.getElementById("reportKpiDashboard");
 
       if (!dashboardRoot) {
-        throw new Error(
-          'ไม่พบ id="reportKpiDashboard" ใน dashboard.html'
-        );
+        throw new Error('ไม่พบ id="reportKpiDashboard" ใน dashboard.html');
       }
 
-      // แทรกเนื้อหา Dashboard ลงในหน้า
       mount.innerHTML = dashboardRoot.outerHTML;
       mount.dataset.rdLoaded = "true";
 
-      // เริ่มต้นระบบหลังจากแทรก HTML แล้ว
       initDashboard();
-
-      console.info("[REPORT] Dashboard HTML loaded successfully");
 
     } catch (error) {
       console.error("[REPORT] Dashboard HTML error:", error);
 
       mount.dataset.rdLoaded = "false";
-
       mount.innerHTML = `
         <div class="card" role="alert">
           <h3>ไม่สามารถโหลด Dashboard ได้</h3>
-          <p>${escapeHTML(
-            error.message || "เกิดข้อผิดพลาด"
-          )}</p>
-          <p>
-            ตรวจสอบตำแหน่งไฟล์ dashboard.html
-            และการเผยแพร่ GitHub Pages
-          </p>
-          <button
-            type="button"
-            class="rd-btn rd-btn-light"
-            id="rdRetryLoadHTML"
-          >
+          <p>${escapeHTML(error.message || "เกิดข้อผิดพลาด")}</p>
+          <p>ตรวจสอบตำแหน่งไฟล์ dashboard.html และการเผยแพร่ GitHub Pages</p>
+          <button type="button" class="rd-btn rd-btn-light" id="rdRetryLoadHTML">
             ลองโหลดอีกครั้ง
           </button>
-        </div>
-      `;
+        </div>`;
 
-      $("rdRetryLoadHTML")?.addEventListener(
-        "click",
-        loadDashboardHTML
-      );
+      $("rdRetryLoadHTML")?.addEventListener("click", loadDashboardHTML);
 
     } finally {
       STATE.loadingHTML = false;
     }
   }
 
-
   /* ==========================================================
-     21. STARTUP
+     19. STARTUP
   ========================================================== */
 
   function startDashboard() {
-    const mount = $("dashboardMount");
-
-    if (mount) {
-      if (
-        mount.dataset.rdLoaded === "true" &&
-        root() &&
-        STATE.initialized
-      ) {
-        return;
-      }
-
+    if ($("dashboardMount")) {
       loadDashboardHTML();
       return;
     }
@@ -2053,23 +1543,17 @@ function renderGroupChart(rows) {
       return;
     }
 
-    console.error(
-      "[REPORT] ไม่พบทั้ง #dashboardMount และ #reportKpiDashboard"
-    );
+    console.error("[REPORT] ไม่พบทั้ง #dashboardMount และ #reportKpiDashboard");
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener(
-      "DOMContentLoaded",
-      startDashboard,
-      { once: true }
-    );
+    document.addEventListener("DOMContentLoaded", startDashboard, { once: true });
   } else {
     startDashboard();
   }
 
   /* ==========================================================
-     22. PUBLIC API
+     20. PUBLIC API
   ========================================================== */
 
   window.REPORT_KPI_DASHBOARD = {
@@ -2081,7 +1565,7 @@ function renderGroupChart(rows) {
     getState: () => ({
       loading: STATE.loading,
       loadingHTML: STATE.loadingHTML,
-      loadingChart: STATE.loadingChart,
+      loadingChart: Boolean(STATE.scripts.chart),
       initialized: STATE.initialized,
       totalRows: STATE.rawRows.length,
       filteredRows: STATE.filteredRows.length,
