@@ -244,7 +244,7 @@ async function loadDatabase() {
     }
 
     setConnectionStatus(
-      `เชื่อมต่อสำเร็จ · โหลดข้อมูล ${STATE.allRows.length.toLocaleString("th-TH")} รายการ`,
+      `เชื่อมต่อสำเร็จ · โหลดข้อมูล ${STATE.allRows.length.toLocaleString("th-TH")} ตัวชี้วัด`,
       "success"
     );
 
@@ -775,7 +775,7 @@ function stackedStatusChart(canvasId, rows, fieldName, emptyLabel) {
               const value = Number(context.raw || 0);
               const percent = total ? (value / total * 100).toFixed(1) : "0.0";
 
-              return `${context.dataset.label}: ${value.toLocaleString("th-TH")} รายการ (${percent}%)`;
+              return `${context.dataset.label}: ${value.toLocaleString("th-TH")} ตัวชี้วัด (${percent}%)`;
             },
 
             footer(items) {
@@ -783,7 +783,7 @@ function stackedStatusChart(canvasId, rows, fieldName, emptyLabel) {
                 (sum, item) => sum + Number(item.raw || 0), 0
               );
 
-              return `รวมทั้งหมด: ${total.toLocaleString("th-TH")} รายการ`;
+              return `รวมทั้งหมด: ${total.toLocaleString("th-TH")} ตัวชี้วัด`;
             }
           }
         }
@@ -860,7 +860,7 @@ function renderStatusChart(rows) {
               );
               const n = Number(c.raw || 0);
 
-              return `${c.label}: ${n.toLocaleString("th-TH")} รายการ (${total ? (n / total * 100).toFixed(1) : "0.0"}%)`;
+              return `${c.label}: ${n.toLocaleString("th-TH")} ตัวชี้วัด (${total ? (n / total * 100).toFixed(1) : "0.0"}%)`;
             }
           }
         }
@@ -976,7 +976,7 @@ function renderTable() {
 
   if ($("tableCount")) {
     $("tableCount").textContent =
-      `${rows.length.toLocaleString("th-TH")} รายการ · หน้า ${STATE.page}/${totalPages}`;
+      `${rows.length.toLocaleString("th-TH")} ตัวชี้วัด · หน้า ${STATE.page}/${totalPages}`;
   }
 
   if ($("pageNumber")) $("pageNumber").textContent = STATE.page;
@@ -1101,7 +1101,7 @@ function openPopover(btn) {
             <em>${counts.get(value).toLocaleString("th-TH")}</em>
           </label>
         `).join("")
-      : `<div class="empty-state" style="padding:14px">ไม่พบรายการ</div>`;
+      : `<div class="empty-state" style="padding:14px">ไม่พบตัวชี้วัด</div>`;
 
     const checkedCount = shown.filter(v => selected.has(v)).length;
 
@@ -1195,7 +1195,7 @@ document.addEventListener("keydown", event => {
 });
 
 window.addEventListener("scroll", event => {
-  // ไม่ปิด popover เมื่อเลื่อนรายการภายในตัวมันเอง
+  // ไม่ปิด popover เมื่อเลื่อนตัวชี้วัดภายในตัวมันเอง
   if (pop && !(event.target instanceof Node && pop.contains(event.target))) {
     closePopover();
   }
