@@ -45,25 +45,29 @@
   <section class="kpi-grid">
     <article class="card kpi-card">
       <div class="kpi-icon">∑</div>
-      <div class="kpi-body"><div class="kpi-label">ตัวชี้วัดทั้งหมด</div><div class="kpi-value" id="totalKpi">—</div><div class="kpi-note">จำนวนรายการตามตัวกรอง</div></div>
+      <div class="kpi-body"><div class="kpi-label">ตัวชี้วัดทั้งหมด</div><div class="kpi-value" id="totalKpi">—</div><div class="kpi-note">จำนวนตัวชี้วัดตามตัวกรอง</div></div>
     </article>
     <article class="card kpi-card">
       <div class="kpi-icon">✓</div>
-      <div class="kpi-body"><div class="kpi-label">บรรลุเป้าหมาย</div><div class="kpi-value" id="passedKpi">—</div><div class="kpi-note">รายการที่มีสถานะผ่าน</div></div>
+      <div class="kpi-body"><div class="kpi-label">บรรลุเป้าหมาย</div><div class="kpi-value" id="passedKpi">—</div><div class="kpi-note">ตัวชี้วัดที่มีสถานะผ่าน</div></div>
     </article>
     <article class="card kpi-card danger">
       <div class="kpi-icon">✕</div>
-      <div class="kpi-body"><div class="kpi-label">ไม่บรรลุเป้าหมาย</div><div class="kpi-value" id="failedKpi">—</div><div class="kpi-note">รายการที่มีสถานะไม่ผ่าน</div></div>
+      <div class="kpi-body"><div class="kpi-label">ไม่บรรลุเป้าหมาย</div><div class="kpi-value" id="failedKpi">—</div><div class="kpi-note">ตัวชี้วัดที่มีสถานะไม่ผ่าน</div></div>
+    </article>
+    <article class="card kpi-card pending">
+      <div class="kpi-icon">!</div>
+      <div class="kpi-body"><div class="kpi-label">ยังไม่ได้กรอกข้อมูล</div><div class="kpi-value" id="pendingKpi">—</div><div class="kpi-note">ตัวชี้วัดที่ยังไม่มีการกรอกผล</div></div>
     </article>
     <article class="card kpi-card rate">
       <div class="kpi-icon">%</div>
       <div class="kpi-body"><div class="kpi-label">อัตราบรรลุเป้าหมาย</div><div class="kpi-value" id="passRate">—</div><div class="bar"><span id="rateBar"></span></div></div>
     </article>
-  </section>
+</section>
 
   <section class="content-grid">
     <article class="card">
-      <div class="card-heading"><h2>เปรียบเทียบกลุ่มตัวชี้วัด</h2><p>จำนวนรายการในแต่ละกลุ่ม แยกตามสรุปผล</p></div>
+      <div class="card-heading"><h2>เปรียบเทียบกลุ่มตัวชี้วัด</h2><p>จำนวนตัวชี้วัดในแต่ละกลุ่ม แยกตามสรุปผล</p></div>
       <div class="chart-wrap"><canvas id="kpiTrendChart"></canvas></div>
     </article>
     <article class="card">
@@ -73,12 +77,12 @@
   </section>
 
   <section class="card full">
-    <div class="card-heading"><h2>เปรียบเทียบ Excellence</h2><p>จำนวนรายการของแต่ละ Excellence แยกตามสรุปผล (Summary)</p></div>
+    <div class="card-heading"><h2>เปรียบเทียบ Excellence</h2><p>จำนวนตัวชี้วัดของแต่ละ Excellence แยกตามสรุปผล (Summary)</p></div>
     <div class="chart-wrap"><canvas id="kpiExcellenceChart"></canvas></div>
   </section>
 
   <section class="card full">
-    <div class="card-heading"><h2>เปรียบเทียบหน่วยงาน</h2><p>จำนวนรายการในแต่ละหน่วยงาน แยกตามสรุปผล</p></div>
+    <div class="card-heading"><h2>เปรียบเทียบหน่วยงาน</h2><p>จำนวนตัวชี้วัดในแต่ละหน่วยงาน แยกตามสรุปผล</p></div>
     <div class="chart-wrap"><canvas id="kpiSectionChart"></canvas></div>
   </section>
 
@@ -195,7 +199,7 @@
 </table>
     </div>
     <div class="table-footer">
-      <span id="tableCount">0 รายการ</span>
+      <span id="tableCount">0 ตัวชี้วัด</span>
       <div class="pagination">
         <button id="prevPage" type="button">ก่อนหน้า</button>
         <button id="pageNumber" type="button" disabled>1</button>
